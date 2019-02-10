@@ -1,25 +1,46 @@
 module Tappy {
  
+    export class stateMachine{
+
+    }
+
     export class TestScene extends Phaser.Scene {
 
         constructor() {
             super({key:'TestScene'});
         }
 
+        stateRunning:boolean = false;
+        stateStartTime:number;
+        
         logo:Phaser.GameObjects.Image;
         sceneTime:Phaser.GameObjects.BitmapText;
         delta:Phaser.GameObjects.BitmapText;
         speed:number = <number>Tappy.InitPhaser.gameRef.config['width']/2 / 1000;
+
         scenets;
         scenedt;
+        running:Phaser.GameObjects.BitmapText;
 
+
+        graphics:Phaser.GameObjects.Graphics;
+
+        color = 0xffff00;
+        thickness = 2;
+        alpha = 1;
         
         preload() {
+            //this.state.running = false;
+
             this.load.image("benalex","./benalex.png");
             this.load.bitmapFont('luc',['./Fonts/lucidaconsole_0.png','./Fonts/lucidaconsole_1.png'],'./Fonts/lucidaconsole.xml');
         }
  
         create() {
+            this.graphics = this.add.graphics();
+
+            this.input.on('pointerdown', this.clicked, this)
+
             this.logo = this.add.image(<number>Tappy.InitPhaser.gameRef.config['width']/2,<number>Tappy.InitPhaser.gameRef.config['height']/2,'benalex');
             this.logo.setScale(.5,.5);
 /*
@@ -35,7 +56,23 @@ module Tappy {
             this.delta = this.add.bitmapText(32,32,'luc','',16);
             this.scenedt = this.add.bitmapText(220,32,'luc','',16);
             this.scenets = this.add.bitmapText(220,50,'luc','',16);
-            
+            this.running = this.add.bitmapText(220,400,'luc','RUNNING',32)
+            this.running.setAlpha(0);
+        }
+
+        clicked(pointer:Phaser.Input.Pointer)
+        {
+            if (this.stateRunning){
+
+                // nothing yet
+            }
+            else
+            {
+                this.stateRunning = true;
+                this.stateStartTime = this.sys.game.loop.time
+                this.running.setAlpha(1)
+            }
+
         }
 
         update(timestep,dt)
@@ -51,7 +88,12 @@ module Tappy {
             this.scenedt.setText(dt);
             this.scenets.setText(<string>timestep);
             
-
+            if (this.stateRunning) {
+                if (this.sys.game.loop.time - this.stateStartTime > 3000) {
+                    this.stateRunning = false;
+                    this.running.setAlpha(0);
+                }
+            }
 
 
         }
