@@ -1,8 +1,4 @@
 module Tappy {
- 
-    export class stateMachine{
-
-    }
 
     export class TestScene extends Phaser.Scene {
 
@@ -12,22 +8,23 @@ module Tappy {
 
         stateRunning:boolean = false;
         stateStartTime:number;
-        
+        stateFinished:boolean = false;
+
         logo:Phaser.GameObjects.Image;
         sceneTime:Phaser.GameObjects.BitmapText;
         delta:Phaser.GameObjects.BitmapText;
-        speed:number = <number>Tappy.InitPhaser.gameRef.config['width']/2 / 1000;
+        speed:number = 720 / 2000;
 
         scenets;
         scenedt;
         running:Phaser.GameObjects.BitmapText;
+        frame:number = 0;
 
-
+        frameRuler: Phaser.Geom.Line[] = [];
+        mainline: Phaser.Geom.Line;
         graphics:Phaser.GameObjects.Graphics;
 
-        color = 0xffff00;
-        thickness = 2;
-        alpha = 1;
+        mouseButton: Phaser.GameObjects.Text[] = [];
         
         preload() {
             //this.state.running = false;
@@ -37,13 +34,22 @@ module Tappy {
         }
  
         create() {
-            this.graphics = this.add.graphics();
+            this.input.mouse.disableContextMenu();
 
-            this.input.on('pointerdown', this.clicked, this)
+            this.graphics = this.add.graphics({lineStyle: {width:1,color: 0xff0000}});
+            this.mainline = new Phaser.Geom.Line(40,300,760,300)
+            this.graphics.strokeLineShape(this.mainline)
 
-            this.logo = this.add.image(<number>Tappy.InitPhaser.gameRef.config['width']/2,<number>Tappy.InitPhaser.gameRef.config['height']/2,'benalex');
-            this.logo.setScale(.5,.5);
-/*
+            for (let i=0; i <120; i++ ){
+                this.frameRuler.push(new Phaser.Geom.Line(0,0,0,0))
+            }
+
+            this.frameRuler.push(new Phaser.Geom.Line(40,320,40,320))
+            
+
+            this.input.on('pointerdown', this.clicked, this);
+
+    /*
             let tween = this.tweens.add({
                 targets: this.logo,
                 scaleX: { value: 1.0, duration: 2000, ease: 'Back.easeInOut' },
@@ -60,42 +66,83 @@ module Tappy {
             this.running.setAlpha(0);
         }
 
-        clicked(pointer:Phaser.Input.Pointer)
-        {
-            if (this.stateRunning){
 
-                // nothing yet
-            }
-            else
-            {
-                this.stateRunning = true;
-                this.stateStartTime = this.sys.game.loop.time
-                this.running.setAlpha(1)
-            }
-
-        }
 
         update(timestep,dt)
         {
+            
             //this.logo.x += this.speed * dt;
-            if (this.logo.x > 600)
-            {
-                this.logo.x = 0
-            }
-
-            this.sceneTime.setText(this.sys.game.loop.time.toString());
+            
+            //this.sceneTime.setText(this.sys.game.loop.time.toString());
             this.delta.setText(<string[]><unknown>this.sys.game.loop.deltaHistory);
             this.scenedt.setText(dt);
             this.scenets.setText(<string>timestep);
             
-            if (this.stateRunning) {
+            if (this.stateRunning ) {
+                if (!this.stateFinished)
+                {
+                    
+                    let x = this.frameRuler[120].x2 += this.speed * dt;
+                    this.frameRuler[120].x2 = x;
+                    this.frameRuler[0].setTo(x,320,x,300);
+                    this.graphics.strokeLineShape(this.frameRuler[120]);
+                    if (this.input.activePointer.isDown) this.graphics.lineStyle(1, 0x00ff00) ;
+                    else this.graphics.lineStyle(1,0xff0000);
+                    
+                    this.graphics.strokeLineShape(this.frameRuler[0]);
+                    
+
+
+                    if (this.sys.game.loop.time - this.stateStartTime > 2000) this.stateFinished = true;
+
+                }
+
                 if (this.sys.game.loop.time - this.stateStartTime > 3000) {
                     this.stateRunning = false;
                     this.running.setAlpha(0);
+                    this.frame = 0
+
                 }
+
             }
 
 
         }
+
+        clicked(pointer:Phaser.Input.Pointer)
+        {
+            if (this.stateRunning && !this.stateFinished){
+                
+
+                let dt = pointer.time - this.stateStartTime;
+                let x = 40 + this.speed * dt;
+
+                let clickStartLine = new Phaser.Geom.Line(x,290,x,360)
+                this.graphics.lineStyle(1,0xffffff);
+                this.graphics.strokeLineShape(clickStartLine);
+                
+                this.mouseButton.push(this.add.text(x-2,360,pointer.buttons.toString(),{ fontFamily: 'Arial', fontSize: 8, color: '#ffffff' }));
+                
+                
+             
+            }
+            if (!this.stateRunning)
+            {
+                this.stateRunning = true;
+                this.stateFinished = false;
+
+                this.stateStartTime = this.sys.game.loop.time
+                this.running.setAlpha(1)
+                this.frameRuler[120].x2 = 40
+                this.graphics.clear();
+                this.graphics.strokeLineShape(this.mainline)
+                this.mouseButton.forEach(element => {
+                    element.destroy()
+                });
+
+            }
+
+        }
+
     }
 }
