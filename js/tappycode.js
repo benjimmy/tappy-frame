@@ -56,7 +56,6 @@ var Tappy;
         }
         TestScene.prototype.preload = function () {
             //this.state.running = false;
-            this.load.image("benalex", "./benalex.png");
             this.load.bitmapFont('luc', ['./Fonts/lucidaconsole_0.png', './Fonts/lucidaconsole_1.png'], './Fonts/lucidaconsole.xml');
         };
         TestScene.prototype.create = function () {
