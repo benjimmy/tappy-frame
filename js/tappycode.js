@@ -4,7 +4,7 @@ var __extends = (this && this.__extends) || (function () {
             ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
             function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
         return extendStatics(d, b);
-    };
+    }
     return function (d, b) {
         extendStatics(d, b);
         function __() { this.constructor = d; }
@@ -46,61 +46,45 @@ var Tappy;
         __extends(TestScene, _super);
         function TestScene() {
             var _this = _super.call(this, { key: 'TestScene' }) || this;
-            _this.stateRunning = false;
-            _this.stateFinished = false;
+            _this.startX = 40;
             _this.speed = 720 / 2000;
             _this.frame = 0;
-            _this.frameRuler = [];
+            _this.stateRunning = false;
+            _this.stateFinished = false;
             _this.mouseButton = [];
             return _this;
         }
         TestScene.prototype.preload = function () {
-            //this.state.running = false;
             this.load.bitmapFont('luc', ['./Fonts/lucidaconsole_0.png', './Fonts/lucidaconsole_1.png'], './Fonts/lucidaconsole.xml');
         };
         TestScene.prototype.create = function () {
             this.input.mouse.disableContextMenu();
             this.graphics = this.add.graphics({ lineStyle: { width: 1, color: 0xff0000 } });
-            this.mainline = new Phaser.Geom.Line(40, 300, 760, 300);
+            this.mainline = new Phaser.Geom.Line(this.startX, 300, 760, 300);
             this.graphics.strokeLineShape(this.mainline);
-            for (var i = 0; i < 120; i++) {
-                this.frameRuler.push(new Phaser.Geom.Line(0, 0, 0, 0));
-            }
-            this.frameRuler.push(new Phaser.Geom.Line(40, 320, 40, 320));
+            this.frameTick = new Phaser.Geom.Line(0, 0, 0, 0);
+            this.frameRuler = new Phaser.Geom.Line(this.startX, 320, this.startX, 320);
             this.input.on('pointerdown', this.clicked, this);
-            /*
-                    let tween = this.tweens.add({
-                        targets: this.logo,
-                        scaleX: { value: 1.0, duration: 2000, ease: 'Back.easeInOut' },
-                        scaleY: { value: 1.0, duration: 2000, ease: 'Back.easeInOut' },
-                        yoyo: false,
-                        repeat: 10
-                        });
-          */
             this.sceneTime = this.add.bitmapText(220, 300, 'luc', '', 16);
-            this.delta = this.add.bitmapText(32, 32, 'luc', '', 16);
             this.scenedt = this.add.bitmapText(220, 32, 'luc', '', 16);
             this.scenets = this.add.bitmapText(220, 50, 'luc', '', 16);
             this.running = this.add.bitmapText(220, 400, 'luc', 'RUNNING', 32);
             this.running.setAlpha(0);
         };
         TestScene.prototype.update = function (timestep, dt) {
-            //this.logo.x += this.speed * dt;
-            //this.sceneTime.setText(this.sys.game.loop.time.toString());
-            this.delta.setText(this.sys.game.loop.deltaHistory);
             this.scenedt.setText(dt);
             this.scenets.setText(timestep);
             if (this.stateRunning) {
                 if (!this.stateFinished) {
-                    var x = this.frameRuler[120].x2 += this.speed * dt;
-                    this.frameRuler[120].x2 = x;
-                    this.frameRuler[0].setTo(x, 320, x, 300);
-                    this.graphics.strokeLineShape(this.frameRuler[120]);
+                    var x = this.frameRuler.x2 += 6; // this.speed * dt;
+                    this.frameRuler.x2 = x;
+                    this.frameTick.setTo(x, 320, x, 300);
+                    this.graphics.strokeLineShape(this.frameRuler);
                     if (this.input.activePointer.isDown)
                         this.graphics.lineStyle(1, 0x00ff00);
                     else
                         this.graphics.lineStyle(1, 0xff0000);
-                    this.graphics.strokeLineShape(this.frameRuler[0]);
+                    this.graphics.strokeLineShape(this.frameTick);
                     if (this.sys.game.loop.time - this.stateStartTime > 2000)
                         this.stateFinished = true;
                 }
@@ -112,6 +96,7 @@ var Tappy;
             }
         };
         TestScene.prototype.clicked = function (pointer) {
+            //stateFinished is a buffer so late clicks don't cause it to start again.
             if (this.stateRunning && !this.stateFinished) {
                 var dt = pointer.time - this.stateStartTime;
                 var x = 40 + this.speed * dt;
@@ -123,14 +108,14 @@ var Tappy;
             if (!this.stateRunning) {
                 this.stateRunning = true;
                 this.stateFinished = false;
+                this.mouseButton.forEach(function (element) { element.destroy(); });
                 this.stateStartTime = this.sys.game.loop.time;
                 this.running.setAlpha(1);
-                this.frameRuler[120].x2 = 40;
+                this.frameRuler.x2 = 40;
                 this.graphics.clear();
                 this.graphics.strokeLineShape(this.mainline);
-                this.mouseButton.forEach(function (element) {
-                    element.destroy();
-                });
+                this.graphics.lineStyle(1, 0xffffff);
+                this.graphics.strokeLineShape(new Phaser.Geom.Line(43, 290, 43, 360)); //should be halfway through frame... Frame size 6?
             }
         };
         return TestScene;
