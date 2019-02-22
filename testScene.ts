@@ -5,31 +5,31 @@ module Tappy {
         constructor() {
             super({key:'TestScene'});
         }
-
+        startX:number = 40;
+        
+        speed:number = 720 / 2000;
+        frame:number = 0;    
+        
         stateRunning:boolean = false;
         stateStartTime:number;
         stateFinished:boolean = false;
 
-        logo:Phaser.GameObjects.Image;
-        sceneTime:Phaser.GameObjects.BitmapText;
-        delta:Phaser.GameObjects.BitmapText;
-        speed:number = 720 / 2000;
 
-        scenets;
-        scenedt;
-        running:Phaser.GameObjects.BitmapText;
-        frame:number = 0;
+        sceneTime:Phaser.GameObjects.BitmapText;  
+        running:Phaser.GameObjects.BitmapText;          
 
-        frameRuler: Phaser.Geom.Line[] = [];
+        scenets:Phaser.GameObjects.BitmapText;  
+        scenedt:Phaser.GameObjects.BitmapText; 
+        
+        frameTick: Phaser.Geom.Line;
+        frameRuler: Phaser.Geom.Line;
+        
         mainline: Phaser.Geom.Line;
         graphics:Phaser.GameObjects.Graphics;
 
         mouseButton: Phaser.GameObjects.Text[] = [];
         
         preload() {
-            //this.state.running = false;
-
-            this.load.image("benalex","./benalex.png");
             this.load.bitmapFont('luc',['./Fonts/lucidaconsole_0.png','./Fonts/lucidaconsole_1.png'],'./Fonts/lucidaconsole.xml');
         }
  
@@ -37,29 +37,15 @@ module Tappy {
             this.input.mouse.disableContextMenu();
 
             this.graphics = this.add.graphics({lineStyle: {width:1,color: 0xff0000}});
-            this.mainline = new Phaser.Geom.Line(40,300,760,300)
+            this.mainline = new Phaser.Geom.Line(this.startX,300,760,300)
             this.graphics.strokeLineShape(this.mainline)
 
-            for (let i=0; i <120; i++ ){
-                this.frameRuler.push(new Phaser.Geom.Line(0,0,0,0))
-            }
-
-            this.frameRuler.push(new Phaser.Geom.Line(40,320,40,320))
+            this.frameTick  = new Phaser.Geom.Line(0,0,0,0)
+            this.frameRuler = new Phaser.Geom.Line(this.startX,320,this.startX,320)
             
-
             this.input.on('pointerdown', this.clicked, this);
 
-    /*
-            let tween = this.tweens.add({
-                targets: this.logo,
-                scaleX: { value: 1.0, duration: 2000, ease: 'Back.easeInOut' },
-                scaleY: { value: 1.0, duration: 2000, ease: 'Back.easeInOut' },
-                yoyo: false,
-                repeat: 10
-                });
-  */          
             this.sceneTime = this.add.bitmapText(220,300,'luc','',16);
-            this.delta = this.add.bitmapText(32,32,'luc','',16);
             this.scenedt = this.add.bitmapText(220,32,'luc','',16);
             this.scenets = this.add.bitmapText(220,50,'luc','',16);
             this.running = this.add.bitmapText(220,400,'luc','RUNNING',32)
@@ -67,14 +53,8 @@ module Tappy {
         }
 
 
-
         update(timestep,dt)
         {
-            
-            //this.logo.x += this.speed * dt;
-            
-            //this.sceneTime.setText(this.sys.game.loop.time.toString());
-            this.delta.setText(<string[]><unknown>this.sys.game.loop.deltaHistory);
             this.scenedt.setText(dt);
             this.scenets.setText(<string>timestep);
             
@@ -82,16 +62,15 @@ module Tappy {
                 if (!this.stateFinished)
                 {
                     
-                    let x = this.frameRuler[120].x2 += this.speed * dt;
-                    this.frameRuler[120].x2 = x;
-                    this.frameRuler[0].setTo(x,320,x,300);
-                    this.graphics.strokeLineShape(this.frameRuler[120]);
+                    let x = this.frameRuler.x2 += 6 // this.speed * dt;
+                    this.frameRuler.x2 = x;
+                    this.frameTick.setTo(x,320,x,300);
+                    this.graphics.strokeLineShape(this.frameRuler);
+                    
                     if (this.input.activePointer.isDown) this.graphics.lineStyle(1, 0x00ff00) ;
                     else this.graphics.lineStyle(1,0xff0000);
                     
-                    this.graphics.strokeLineShape(this.frameRuler[0]);
-                    
-
+                    this.graphics.strokeLineShape(this.frameTick);
 
                     if (this.sys.game.loop.time - this.stateStartTime > 2000) this.stateFinished = true;
 
@@ -103,17 +82,14 @@ module Tappy {
                     this.frame = 0
 
                 }
-
             }
-
-
         }
 
         clicked(pointer:Phaser.Input.Pointer)
         {
+            //stateFinished is a buffer so late clicks don't cause it to start again.
             if (this.stateRunning && !this.stateFinished){
                 
-
                 let dt = pointer.time - this.stateStartTime;
                 let x = 40 + this.speed * dt;
 
@@ -122,23 +98,21 @@ module Tappy {
                 this.graphics.strokeLineShape(clickStartLine);
                 
                 this.mouseButton.push(this.add.text(x-2,360,pointer.buttons.toString(),{ fontFamily: 'Arial', fontSize: 8, color: '#ffffff' }));
-                
-                
-             
+
             }
             if (!this.stateRunning)
             {
                 this.stateRunning = true;
                 this.stateFinished = false;
+                this.mouseButton.forEach(element => { element.destroy() });
 
                 this.stateStartTime = this.sys.game.loop.time
                 this.running.setAlpha(1)
-                this.frameRuler[120].x2 = 40
+                this.frameRuler.x2 = 40
                 this.graphics.clear();
                 this.graphics.strokeLineShape(this.mainline)
-                this.mouseButton.forEach(element => {
-                    element.destroy()
-                });
+                this.graphics.lineStyle(1,0xffffff);
+                this.graphics.strokeLineShape(new Phaser.Geom.Line(43,290,43,360)) //should be halfway through frame... Frame size 6?
 
             }
 
