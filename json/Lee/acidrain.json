@@ -1,7 +1,7 @@
 {
     "MoveName": "Acid Rain",
     "MoveNotation": "1:3:3:3",
-    "Notes": "Advice: Try and hit the first 3 from frame 10 to 14 so the timing for the next two 3's is consistent.",
+    "Notes": "Watch out for hitting the first 3 late as it will delay everything else.",
     "JustFrames": [
       {
         "id": 0,
