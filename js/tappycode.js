@@ -115,7 +115,7 @@ var Tappy;
             if (this.stateRunning) {
                 this.frame++;
                 if (!this.stateFinished) {
-                    var x = this.frameRuler.x2 += this.frameWidth; // this.speed * dt;
+                    var x = this.frameRuler.x2 += this.speed * dt; // or += this.frameWidth;
                     this.frameRuler.x2 = x;
                     this.frameTick.setTo(x, 320, x, 300);
                     this.graphics.strokeLineShape(this.frameRuler);
