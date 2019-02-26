@@ -24,7 +24,7 @@ var Tappy;
                     mode: Phaser.Scale.FIT,
                     autoCenter: Phaser.Scale.CENTER_BOTH,
                     width: 800,
-                    height: 600
+                    height: 450
                 },
                 scene: [Tappy.TestScene],
                 banner: true,
