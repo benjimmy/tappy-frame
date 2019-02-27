@@ -23,8 +23,8 @@ var Tappy;
                 scale: {
                     mode: Phaser.Scale.FIT,
                     autoCenter: Phaser.Scale.CENTER_BOTH,
-                    width: 800,
-                    height: 600
+                    width: 1200,
+                    height: 675
                 },
                 scene: [Tappy.TestScene],
                 banner: true,
@@ -47,14 +47,16 @@ var Tappy;
         function TestScene() {
             var _this = _super.call(this, { key: 'TestScene' }) || this;
             //Globals
-            _this.smallText = { fontFamily: 'Arial', fontSize: 8, color: '#ffffff' };
-            _this.mediumText = { fontFamily: 'Arial', fontSize: 14, color: '#ffffff' };
-            _this.startX = 40;
+            _this.smallText = { fontFamily: 'Arial', fontSize: 12, color: '#ffffff' };
+            _this.mediumText = { fontFamily: 'Arial', fontSize: 18, color: '#ffffff' };
+            _this.largeText = { fontFamily: 'Arial', fontSize: 28, color: '#ffffff' };
+            _this.startX = 60;
+            _this.gameWidth = 1080;
             //moveDisplay
-            _this.redFrame = [];
+            _this.justFrames = [];
             //state
             _this.stateRunning = false;
-            _this.stateFinished = false;
+            _this.stateShowResults = false;
             _this.frame = 0; //dont trust this for calc - only for realtime view.
             _this.mouseButton = [];
             return _this;
@@ -67,18 +69,18 @@ var Tappy;
             var _this = this;
             this.input.mouse.disableContextMenu();
             this.justFrameMove = this.cache.json.get('moveFrames');
-            this.lastFrame = this.justFrameMove.JustFrames[this.justFrameMove.JustFrames.length - 1].latestFrame + 15;
-            this.speed = 720 / this.lastFrame / 16.666666666666667;
-            this.frameWidth = Math.round(720 / this.lastFrame); //note-needs rounding???
+            this.lastFrame = this.justFrameMove.JustFrames[this.justFrameMove.JustFrames.length - 1].latestFrame + 5;
+            this.speed = this.gameWidth / this.lastFrame / oneFrame;
+            this.frameWidth = Math.round(this.gameWidth / this.lastFrame); //note-needs rounding???
             this.add.text(this.startX, 150, this.justFrameMove.MoveName, this.mediumText);
             this.add.text(this.startX, 170, this.justFrameMove.MoveNotation, this.mediumText);
             this.add.text(this.startX, 190, this.justFrameMove.Notes, this.mediumText);
             var graphicsGuide = this.add.graphics({ lineStyle: { width: 1, color: 0xff0000 }, fillStyle: { color: 0x660000, alpha: 1 } });
             for (var i = 0; i < this.lastFrame; i++) {
                 this.add.text(this.startX + i * this.frameWidth + this.frameWidth / 2, 290, i.toString(), this.smallText).setOrigin(0.5);
-                this.redFrame.push(new Phaser.Geom.Rectangle(this.startX + i * this.frameWidth, 250, this.frameWidth - 2, 30));
+                this.justFrames.push(new Phaser.Geom.Rectangle(this.startX + i * this.frameWidth, 250, this.frameWidth - 2, 30));
             }
-            this.redFrame.forEach(function (frame) {
+            this.justFrames.forEach(function (frame) {
                 graphicsGuide.strokeRectShape(frame);
                 graphicsGuide.fillRectShape(frame);
             });
@@ -86,80 +88,92 @@ var Tappy;
                 //early / late frame = blue - todo movestuff...
                 graphicsGuide.lineStyle(1, 0x0000ff);
                 graphicsGuide.fillStyle(0x000077);
-                for (var i = jf.earlyFrame; i < jf.latestFrame; i++) {
-                    graphicsGuide.fillRectShape(_this.redFrame[i]);
-                    graphicsGuide.strokeRectShape(_this.redFrame[i]);
+                for (var i = jf.earlyFrame; i <= jf.latestFrame; i++) {
+                    graphicsGuide.fillRectShape(_this.justFrames[i]);
+                    graphicsGuide.strokeRectShape(_this.justFrames[i]);
                 }
                 graphicsGuide.lineStyle(1, 0x00ff00);
                 graphicsGuide.fillStyle(0x007700);
-                graphicsGuide.fillRectShape(_this.redFrame[jf.justFrame]);
-                graphicsGuide.strokeRectShape(_this.redFrame[jf.justFrame]);
-                _this.add.text(_this.startX + jf.justFrame * _this.frameWidth + _this.frameWidth / 2, 240, jf.move, { fontFamily: 'Arial', fontSize: 8, color: '#ffffff' }).setOrigin(0.5);
+                graphicsGuide.fillRectShape(_this.justFrames[jf.justFrame]);
+                graphicsGuide.strokeRectShape(_this.justFrames[jf.justFrame]);
+                _this.add.text(_this.startX + jf.justFrame * _this.frameWidth + _this.frameWidth / 2, 240, jf.move, _this.smallText).setOrigin(0.5);
             });
-            //this is for the realtime line - though the top is drawn upfront.
-            this.graphics = this.add.graphics({ lineStyle: { width: 1, color: 0xff0000 } });
-            this.mainline = new Phaser.Geom.Line(this.startX, 300, this.startX + this.frameWidth * this.lastFrame, 300);
-            this.graphics.strokeLineShape(this.mainline);
-            this.frameTick = new Phaser.Geom.Line(0, 0, 0, 0);
-            this.frameRuler = new Phaser.Geom.Line(this.startX, 320, this.startX, 320);
             this.input.on('pointerdown', this.clicked, this);
-            this.sceneTime = this.add.bitmapText(220, 300, 'luc', '', 16);
-            this.scenedt = this.add.bitmapText(220, 32, 'luc', '', 16);
-            this.scenets = this.add.bitmapText(220, 50, 'luc', '', 16);
-            this.running = this.add.bitmapText(220, 400, 'luc', 'RUNNING', 32);
-            this.running.setAlpha(0);
+            //this is for the realtime line - todo, something else - another way...
+            this.graphics = this.add.graphics({ lineStyle: { width: 1, color: 0xff0000 } });
+            this.frameRuler = new Phaser.Geom.Line(this.startX, 320, this.startX, 320);
+            this.scenefps = this.add.bitmapText(this.gameWidth + this.startX, 32, 'luc', '', 16).setOrigin(1);
+            this.running = this.add.text(600, 50, 'Tap or Click when ready', this.largeText).setOrigin();
         };
         TestScene.prototype.update = function (timestep, dt) {
-            this.scenedt.setText(dt);
-            this.scenets.setText(timestep);
+            this.scenefps.setText(Phaser.Math.FloorTo(this.sys.game.loop.actualFps, -2).toString()); //seems slow - think i should do it myself. ? How often then?
             if (this.stateRunning) {
                 this.frame++;
-                if (!this.stateFinished) {
-                    var x = this.frameRuler.x2 += this.frameWidth; // this.speed * dt;
+                if (!this.stateShowResults) {
+                    var x = this.frameRuler.x2 += this.speed * dt; //this.frameWidth // 
                     this.frameRuler.x2 = x;
-                    this.frameTick.setTo(x, 320, x, 300);
                     this.graphics.strokeLineShape(this.frameRuler);
-                    if (this.input.activePointer.isDown)
-                        this.graphics.lineStyle(1, 0x00ff00);
-                    else
-                        this.graphics.lineStyle(1, 0xff0000);
-                    this.graphics.strokeLineShape(this.frameTick);
                     if (this.frame >= this.lastFrame)
-                        this.stateFinished = true;
+                        this.stateShowResults = true;
                 }
                 if (this.frame >= this.lastFrame + 30) {
                     this.stateRunning = false;
-                    this.running.setAlpha(0);
+                    this.running.setAlpha(1);
                 }
             }
         };
         TestScene.prototype.clicked = function (pointer) {
-            //stateFinished is a buffer so late clicks don't cause it to start again.
-            if (this.stateRunning && !this.stateFinished) {
-                var dt = pointer.time - this.stateStartTime;
-                var x = 40 + this.speed * dt;
-                var clickStartLine = new Phaser.Geom.Line(x, 300, x, 360);
+            //stateShowResults is a buffer so late clicks don't cause it to start again.
+            if (this.stateRunning && !this.stateShowResults) {
+                this.results.add(pointer.time);
+                var dt = pointer.time - this.results.startTime;
+                var x = this.startX + this.speed * dt;
+                var clickStartLine = new Phaser.Geom.Line(x, 250, x, 330);
                 this.graphics.lineStyle(1, 0xffffff);
                 this.graphics.strokeLineShape(clickStartLine);
-                this.mouseButton.push(this.add.text(x - 2, 360, pointer.buttons.toString(), { fontFamily: 'Arial', fontSize: 8, color: '#ffffff' }));
+                this.mouseButton.push(this.add.text(x - 2, 360, pointer.buttons.toString(), this.smallText));
             }
             if (!this.stateRunning) {
+                this.results = null;
                 this.stateRunning = true;
-                this.stateFinished = false;
+                this.stateShowResults = false;
                 this.mouseButton.forEach(function (element) { element.destroy(); });
-                this.stateStartTime = this.sys.game.loop.time;
-                this.running.setAlpha(1);
-                this.frameRuler.x2 = 40;
+                this.results = new resultset(this.sys.game.loop.time);
+                this.running.setAlpha(0);
+                this.frameRuler.x2 = this.startX;
                 this.graphics.clear();
-                this.graphics.strokeLineShape(this.mainline);
                 this.graphics.lineStyle(1, 0xffffff);
-                var firstClickX = 40 + this.frameWidth / 2;
-                this.graphics.strokeLineShape(new Phaser.Geom.Line(firstClickX, 290, firstClickX, 360)); //should be halfway through frame... Frame size 6?
+                var firstClickX = this.startX + this.frameWidth / 2;
+                this.graphics.strokeLineShape(new Phaser.Geom.Line(firstClickX, 250, firstClickX, 330)); //should be halfway through frame... Frame size 6?
                 this.frame = 0;
             }
         };
         return TestScene;
     }(Phaser.Scene));
     Tappy.TestScene = TestScene;
+    var oneFrame = 16.666666666666667;
+    var resultset = /** @class */ (function () {
+        function resultset(start, button) {
+            if (button === void 0) { button = "1"; }
+            this.startTime = start;
+            this.currentButton = { button: button, time: start };
+            this.calcFrames(start);
+        }
+        resultset.prototype.add = function (time, button) {
+            if (button === void 0) { button = "1"; }
+            return "100%";
+        };
+        resultset.prototype.calcFrames = function (newTime) {
+            //not using yet..
+            var timediff = newTime - this.startTime;
+            var timeMod = timediff % oneFrame;
+            var timePerc = Phaser.Math.Percent(timeMod, 0, oneFrame);
+            var timeFrame = timediff / oneFrame;
+            this.currentButton.time = newTime;
+            this.currentButton.centreFrame = { frame: Math.floor(timediff / oneFrame) };
+            //this.currentButton.earlyFrame.frame = 
+        };
+        return resultset;
+    }());
 })(Tappy || (Tappy = {}));
 //# sourceMappingURL=tappycode.js.map
