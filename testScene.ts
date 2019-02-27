@@ -77,7 +77,7 @@ module Tappy {
                 //early / late frame = blue - todo movestuff...
                 graphicsGuide.lineStyle(1,0x0000ff)
                 graphicsGuide.fillStyle(0x000077)
-                for (let i = jf.earlyFrame; i < jf.latestFrame; i++){
+                for (let i = jf.earlyFrame; i <= jf.latestFrame; i++){
                     graphicsGuide.fillRectShape(this.redFrame[i])
                     graphicsGuide.strokeRectShape(this.redFrame[i])
                 }
@@ -150,7 +150,7 @@ module Tappy {
             if (this.stateRunning && !this.stateFinished){
                 
                 let dt = pointer.time - this.stateStartTime;
-                let x = 40 + this.speed * dt;
+                let x = this.startX + this.speed * dt;
 
                 let clickStartLine = new Phaser.Geom.Line(x,300,x,360)
                 this.graphics.lineStyle(1,0xffffff);
@@ -167,11 +167,11 @@ module Tappy {
 
                 this.stateStartTime = this.sys.game.loop.time
                 this.running.setAlpha(1)
-                this.frameRuler.x2 = 40
+                this.frameRuler.x2 = this.startX
                 this.graphics.clear();
                 this.graphics.strokeLineShape(this.mainline)
                 this.graphics.lineStyle(1,0xffffff);
-                let firstClickX = 40 + this.frameWidth / 2;
+                let firstClickX = this.startX + this.frameWidth / 2;
                 this.graphics.strokeLineShape(new Phaser.Geom.Line(firstClickX,290,firstClickX,360)) //should be halfway through frame... Frame size 6?
                 this.frame = 0
 
