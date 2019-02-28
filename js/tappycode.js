@@ -108,15 +108,19 @@ var Tappy;
         TestScene.prototype.update = function (timestep, dt) {
             this.scenefps.setText(Phaser.Math.FloorTo(this.sys.game.loop.actualFps, -2).toString()); //seems slow - think i should do it myself. ? How often then?
             if (this.stateRunning) {
-                this.frame++;
+                this.frame++; // dont use frames for state
+                var runtime = this.sys.game.loop.time - this.results.startTime
+                
                 if (!this.stateShowResults) {
                     var x = this.frameRuler.x2 += this.speed * dt; //this.frameWidth // 
                     this.frameRuler.x2 = x;
                     this.graphics.strokeLineShape(this.frameRuler);
-                    if (this.frame >= this.lastFrame)
+                    if (runtime > this.lastFrame * oneFrame )
                         this.stateShowResults = true;
                 }
-                if (this.frame >= this.lastFrame + 30) {
+                
+
+                if (runtime > (this.lastFrame + 30) * oneFrame ){
                     this.stateRunning = false;
                     this.running.setAlpha(1);
                 }
@@ -127,10 +131,14 @@ var Tappy;
             if (this.stateRunning && !this.stateShowResults) {
                 this.results.add(pointer.time);
                 var dt = pointer.time - this.results.startTime;
-                var x = this.startX + this.speed * dt;
-                var clickStartLine = new Phaser.Geom.Line(x, 250, x, 330);
+                
+                for (var e = -8; e < 9; e+= 8){
+                var x = this.startX + this.speed * (dt + e);
+                
+                var clickStartLine = new Phaser.Geom.Line(x, 250 + Math.abs(e), x, 330);
                 this.graphics.lineStyle(1, 0xffffff);
                 this.graphics.strokeLineShape(clickStartLine);
+                }
                 this.mouseButton.push(this.add.text(x - 2, 360, pointer.buttons.toString(), this.smallText));
             }
             if (!this.stateRunning) {
