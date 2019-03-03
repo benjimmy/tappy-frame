@@ -108,24 +108,25 @@ module Tappy {
                   
             if (this.stateRunning ) {
                 this.frame++;
+                var runtime = this.sys.game.loop.time - this.results.startTime
                 if (!this.stateShowResults)
                 {
-                    
-                    let x = this.frameRuler.x2 += this.speed * dt; //this.frameWidth // 
-                    this.frameRuler.x2 = x;
-                    
-                    this.graphics.strokeLineShape(this.frameRuler);
-                    
-                    if (this.frame >= this.lastFrame) this.stateShowResults = true;
-
+                    if (runtime > this.lastFrame * oneFrame ) {
+                        //console.log(this.frame)
+                        this.stateShowResults = true;
+                    }
+                    else{
+                        let x = this.frameRuler.x2 += this.speed * dt;  
+                        this.frameRuler.x2 = x;
+                        
+                        this.graphics.strokeLineShape(this.frameRuler);  //I want to uses
+                    }
                 }
-
-                if (this.frame >= this.lastFrame + 30) {
+                if (runtime > (this.lastFrame + 15) * oneFrame ) {
                     this.stateRunning = false;
                     this.running.setAlpha(1);
-                    
-
                 }
+                
             }
         }
 
@@ -133,16 +134,36 @@ module Tappy {
         {
             //stateShowResults is a buffer so late clicks don't cause it to start again.
             if (this.stateRunning && !this.stateShowResults){
-                this.results.add(pointer.time)
+                let frame = this.results.add(pointer.time)
+
+                console.log(this.frame) // something isn't right.
+
                 let dt = pointer.time - this.results.startTime;
-                let x = this.startX + this.speed * dt;
-
-                let clickStartLine = new Phaser.Geom.Line(x,250,x,330)
-                this.graphics.lineStyle(1,0xffffff);
-                this.graphics.strokeLineShape(clickStartLine);
+                let x = this.startX + this.speed * dt
+                let clickCircle = new Phaser.Geom.Circle(x,270,this.frameWidth/2)
+                let clickStartLine = new Phaser.Geom.Line(x, 250, x, 330);
+            
+                this.graphics.lineStyle(1, 0xffffff);
+                this.graphics.fillStyle(0xffffff,0.5)
+                this.graphics.fillCircleShape(clickCircle)
+                this.graphics.strokeCircleShape(clickCircle)
                 
-                this.mouseButton.push(this.add.text(x-2,360,pointer.buttons.toString(),this.smallText));
+                this.graphics.strokeLineShape(clickStartLine);
 
+                /*
+                let x = 0;
+                for (var e = -8; e < 9; e+= 8){
+                    x = this.startX + this.speed * (dt + e);
+
+                    let clickStartLine = new Phaser.Geom.Line(x, 250 + Math.abs(e*2), x, 330);
+                    this.graphics.lineStyle(1, 0xffffff);
+                    this.graphics.strokeLineShape(clickStartLine);
+                    }
+                */
+                let percent = Math.floor(frame.chance * 100).toString()
+                this.mouseButton.push(this.add.text(x-2,360,`Frame:${frame.frame.toString()}: ${percent}%`,this.smallText));
+
+                
             }
             if (!this.stateRunning)
             {
@@ -153,7 +174,7 @@ module Tappy {
                 this.mouseButton.forEach(element => { element.destroy() });
 
                 this.results = new resultset(this.sys.game.loop.time)
-                
+               
                 this.running.setAlpha(0)
                 this.frameRuler.x2 = this.startX
                 this.graphics.clear()              
@@ -174,7 +195,6 @@ module Tappy {
         button?: string
         time: number
         earlyFrame?: calcFrame
-        centreFrame?: calcFrame
         lateFrame?: calcFrame
         
     }
@@ -185,38 +205,55 @@ module Tappy {
         chance?: number;
     }
     class  resultset {
+        //1. capture the times that taps were made.
+        //2. calc which frames they could have hit on and percentages.
+        
+        //3. compare with the just frame objects to measure % of success.  - Do this as a seperate function. 
 
         public startTime: number;
-        public buttons:buttonPush[]
+        buttons:buttonPush[] = []
 
-        currentButton:buttonPush
-        previousButton:buttonPush
 
         constructor(start:number, button:string = "1") {
             this.startTime = start;
-            this.currentButton = {button: button,time:start}
-            this.calcFrames(start)
-
-
-
-        }
-        public add(time:number, button:string = "1") :string {
-            return "100%"
+            this.buttons.push({time: start, button: button})
         }
 
-        calcFrames(newTime: number): void {
+        public add(time:number, button:string = "1") :calcFrame {
+            let index = this.buttons.push({time: time,button: button})
+          
+            this.calcFrames(this.buttons[index-1])
+            
+            return this.getClosestFrame(this.buttons[index-1])
+        }
+
+        calcFrames(currentButton:buttonPush): void {
             
             //not using yet..
-            let timediff = newTime - this.startTime
-            let timeMod = timediff % oneFrame;
-            let timePerc = Phaser.Math.Percent(timeMod,0,oneFrame)
-            let timeFrame = timediff / oneFrame;
+            let timediff = currentButton.time - this.startTime  //eg 19.17
+
+
+            let timeFrame = timediff / oneFrame; // part through 1st frame. =  1.15
+
+            let timeMod = timediff % oneFrame;  // how far through the 1st frame = 2.5
+            let timePerc = Phaser.Math.Percent(timeMod,0,oneFrame) //chance is backwards. later the worse.
+            //dsomething is still wrong here>.....
+
 
             
-            this.currentButton.time = newTime;
-            this.currentButton.centreFrame = {frame: Math.floor(timediff / oneFrame)};
-            //this.currentButton.earlyFrame.frame = 
+            //This will need track and add push frames.
+            currentButton.earlyFrame = {frame: Math.floor(timediff / oneFrame),chance:1-timePerc};
+            currentButton.lateFrame = {frame: Math.floor((timediff+oneFrame) / oneFrame),chance:timePerc};      //might need to shift these a bit
         }
+
+        getClosestFrame(b:buttonPush): calcFrame{
+            if (b.earlyFrame.chance > .5) {
+                return b.earlyFrame
+            }
+            else return b.lateFrame
+        }
+
+
 
     }
 
