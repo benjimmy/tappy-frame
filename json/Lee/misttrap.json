@@ -1,0 +1,39 @@
+{
+    "MoveName": "Mist Trap",
+    "MoveNotation": "3:3[3]:4",
+    "Notes": "Advice: Wa da da dah. Optional extra 3 helps with rythm. Try and hit at 0, 10, 20, 31",
+    "JustFrames": [
+      {
+        "id": 0,
+        "move": 3,
+        "earlyFrame": 0,
+        "justFrame": 0,
+        "latestFrame": 0,
+        "optional": false
+      },
+      {
+        "id": 1,
+        "move": 3,
+        "earlyFrame": 2,
+        "justFrame": 13,
+        "latestFrame": 13,
+        "optional": false
+      },
+      {
+        "id": 2,
+        "move": 3,
+        "earlyFrame": 14,
+        "justFrame": 20,
+        "latestFrame": 30,
+        "optional": true
+      },
+      {
+        "id": 3,
+        "move": 4,
+        "earlyFrame": 31,
+        "justFrame": 31,
+        "latestFrame": 31,
+        "optional": false
+      }
+    ]
+}
