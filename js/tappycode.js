@@ -45,7 +45,7 @@ var Tappy;
         }
         preload() {
             this.load.bitmapFont('luc', ['./Fonts/lucidaconsole_0.png', './Fonts/lucidaconsole_1.png'], './Fonts/lucidaconsole.xml');
-            this.load.json('moveFrames', './json/Lee/misttrap.json');
+            this.load.json('moveFrames', './json/Lee/acidrain.json');
         }
         create() {
             this.input.mouse.disableContextMenu();
@@ -79,26 +79,37 @@ var Tappy;
                 graphicsGuide.fillRectShape(frame);
             });
             this.justFrameMove.JustFrames.forEach(jf => {
-                //early = blue
-                graphicsGuide.lineStyle(1, 0x0000ff);
-                graphicsGuide.fillStyle(0x000077);
-                for (let i = jf.earlyFrame; i < jf.justFrame; i++) {
-                    graphicsGuide.fillRectShape(this.frameBoxes[i]);
-                    graphicsGuide.strokeRectShape(this.frameBoxes[i]);
+                if (!jf.optional) { // just until I have a better plan
+                    this.add.text(this.startX + jf.justFrame * this.frameWidth + this.frameWidth / 2, 240, jf.move, this.smallText).setOrigin(0.5);
+                    //early = blue
+                    graphicsGuide.lineStyle(1, 0x0000ff);
+                    graphicsGuide.fillStyle(0x000077);
+                    for (let i = jf.earlyFrame; i < jf.justFrame; i++) {
+                        graphicsGuide.fillRectShape(this.frameBoxes[i]);
+                        graphicsGuide.strokeRectShape(this.frameBoxes[i]);
+                    }
+                    //late = purple
+                    graphicsGuide.lineStyle(1, 0xcc00ff);
+                    graphicsGuide.fillStyle(0x550077);
+                    for (let i = jf.justFrame + 1; i <= jf.latestFrame; i++) {
+                        graphicsGuide.fillRectShape(this.frameBoxes[i]);
+                        graphicsGuide.strokeRectShape(this.frameBoxes[i]);
+                        graphicsGuide.strokeLineShape(new Phaser.Geom.Line(this.frameBoxes[i].right, 230, this.frameBoxes[i].right, 250));
+                    }
+                    graphicsGuide.strokeLineShape(new Phaser.Geom.Line(this.frameBoxes[jf.justFrame].right, 230, this.frameBoxes[jf.latestFrame].right, 230));
+                    //JF = Green
+                    graphicsGuide.lineStyle(1, 0x00ff00);
+                    graphicsGuide.fillStyle(0x007700);
+                    graphicsGuide.fillRectShape(this.frameBoxes[jf.justFrame]);
+                    graphicsGuide.strokeRectShape(this.frameBoxes[jf.justFrame]);
+                    //JF bounds and text
+                    let leftBounds = this.frameBoxes[jf.earlyFrame].left;
+                    let rightBounds = this.frameBoxes[jf.justFrame].right;
+                    graphicsGuide.lineStyle(1, 0xffffff);
+                    graphicsGuide.strokeLineShape(new Phaser.Geom.Line(leftBounds, 230, rightBounds, 230));
+                    graphicsGuide.strokeLineShape(new Phaser.Geom.Line(leftBounds, 230, leftBounds, 250));
+                    graphicsGuide.strokeLineShape(new Phaser.Geom.Line(rightBounds, 230, rightBounds, 250));
                 }
-                //late = purple
-                graphicsGuide.lineStyle(1, 0xcc00ff);
-                graphicsGuide.fillStyle(0x550077);
-                for (let i = jf.justFrame; i < jf.latestFrame; i++) {
-                    graphicsGuide.fillRectShape(this.frameBoxes[i]);
-                    graphicsGuide.strokeRectShape(this.frameBoxes[i]);
-                }
-                //JF = Green
-                graphicsGuide.lineStyle(1, 0x00ff00);
-                graphicsGuide.fillStyle(0x007700);
-                graphicsGuide.fillRectShape(this.frameBoxes[jf.justFrame]);
-                graphicsGuide.strokeRectShape(this.frameBoxes[jf.justFrame]);
-                this.add.text(this.startX + jf.justFrame * this.frameWidth + this.frameWidth / 2, 240, jf.move, this.smallText).setOrigin(0.5);
             });
             this.input.on('pointerdown', this.clicked, this);
             //this is for the realtime line - todo, something else - another way...

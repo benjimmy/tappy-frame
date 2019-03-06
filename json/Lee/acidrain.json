@@ -9,15 +9,15 @@
         "earlyFrame": 0,
         "justFrame": 0,
         "latestFrame": 0,
-        "Optional": false
+        "optional": false
       },
       {
         "id": 1,
         "move": 3,
-        "earlyFrame": 2,
+        "earlyFrame": 1,
         "justFrame": 10,
         "latestFrame": 14,
-        "Optional": false
+        "optional": false
       },
       {
         "id": 2,
@@ -25,7 +25,7 @@
         "earlyFrame": 24,
         "justFrame": 26,
         "latestFrame": 26,
-        "Optional": false
+        "optional": false
       },
       {
         "id": 3,
@@ -33,7 +33,7 @@
         "earlyFrame": 35,
         "justFrame": 36,
         "latestFrame": 36,
-        "Optional": false
+        "optional": false
       }
     ]
 }
