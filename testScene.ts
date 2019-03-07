@@ -4,7 +4,6 @@ module Tappy {
         constructor() {
             super({key:'TestScene'});
         }
-        
         //Globals
         smallText:any = { fontFamily: 'Arial', fontSize: 12, color: '#ffffff' };
         mediumText:any = { fontFamily: 'Arial', fontSize: 18, color: '#ffffff' }
@@ -157,7 +156,6 @@ module Tappy {
                 if (!this.stateShowResults)
                 {
                     if (runtime > this.lastFrame * oneFrame ) {
-                        //console.log(this.frame)
                         this.stateShowResults = true;
                     }
                     else{
@@ -188,8 +186,7 @@ module Tappy {
             if (this.stateRunning && !this.stateShowResults){
 
                 let frame = this.results.add(pointer.time)
-                console.log(this.frame) // something isn't right.
-
+        
                 let dt = pointer.time - this.results.startTime;
 
                 let x = firstClickX + this.speed * dt

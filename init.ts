@@ -9,10 +9,9 @@ module Tappy{
             let config = {
                 type: Phaser.WEBGL,
                 scale: {
-                    mode: Phaser.Scale.FIT,
-                    autoCenter: Phaser.Scale.CENTER_BOTH,
+                    mode: Phaser.Scale.ENVELOP,
                     width: 1200,
-                    height: 675
+                    height: 2200
                 },                
                 scene: [TestScene],
                 banner: true,

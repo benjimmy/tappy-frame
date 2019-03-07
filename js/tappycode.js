@@ -6,10 +6,9 @@ var Tappy;
             let config = {
                 type: Phaser.WEBGL,
                 scale: {
-                    mode: Phaser.Scale.FIT,
-                    autoCenter: Phaser.Scale.CENTER_BOTH,
+                    mode: Phaser.Scale.ENVELOP,
                     width: 1200,
-                    height: 675
+                    height: 2200
                 },
                 scene: [Tappy.TestScene],
                 banner: true,
@@ -125,7 +124,6 @@ var Tappy;
                 var runtime = this.sys.game.loop.time - this.results.startTime;
                 if (!this.stateShowResults) {
                     if (runtime > this.lastFrame * oneFrame) {
-                        //console.log(this.frame)
                         this.stateShowResults = true;
                     }
                     else {
@@ -147,7 +145,6 @@ var Tappy;
             //stateShowResults is a buffer so late clicks don't cause it to start again.
             if (this.stateRunning && !this.stateShowResults) {
                 let frame = this.results.add(pointer.time);
-                console.log(this.frame); // something isn't right.
                 let dt = pointer.time - this.results.startTime;
                 let x = firstClickX + this.speed * dt;
                 this.graphics.lineStyle(1, 0xffffff);
