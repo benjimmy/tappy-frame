@@ -6,9 +6,9 @@ var Tappy;
             let config = {
                 type: Phaser.WEBGL,
                 scale: {
-                    mode: Phaser.Scale.ENVELOP,
+                    mode: Phaser.Scale.FIT,
                     width: 1200,
-                    height: 2200
+                    height: 615
                 },
                 scene: [Tappy.TestScene],
                 banner: true,
