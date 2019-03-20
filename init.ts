@@ -1,4 +1,5 @@
 /// <reference path='./phaser.d.ts'/>
+
 module Tappy{
     export class InitPhaser {
  
@@ -10,9 +11,8 @@ module Tappy{
                 type: Phaser.WEBGL,
                 scale: {
                     mode: Phaser.Scale.FIT,
-                    autoCenter: Phaser.Scale.CENTER_BOTH,
                     width: 1200,
-                    height: 675
+                    height: 615
                 },                
                 scene: [TestScene],
                 banner: true,
