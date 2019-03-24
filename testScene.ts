@@ -4,7 +4,6 @@ module Tappy {
         constructor() {
             super({key:'TestScene'});
         }
-        
         //Globals
         smallText:any = { fontFamily: 'Arial', fontSize: 12, color: '#ffffff' };
         mediumText:any = { fontFamily: 'Arial', fontSize: 18, color: '#ffffff' };
@@ -14,7 +13,7 @@ module Tappy {
         speed:number;
     //Phaser.Math.FloorTo
         //moveFrameObject
-        justFrameMove:any;
+        justFrameMove:justFrames;
         frameWidth:number;
         lastFrame:number;
 
@@ -49,7 +48,7 @@ module Tappy {
         create() {
             this.input.mouse.disableContextMenu();
 
-            this.justFrameMove = this.cache.json.get('moveFrames');
+            this.justFrameMove = <justFrames> this.cache.json.get('moveFrames');
 
             this.lastFrame = this.justFrameMove.JustFrames[this.justFrameMove.JustFrames.length-1].latestFrame + 5;
             this.frameWidth = Math.round(this.gameWidth / this.lastFrame);  //round it into clean frame size
@@ -93,7 +92,7 @@ module Tappy {
 
 
         
-                    this.add.text(this.startX + jf.justFrame*this.frameWidth +this.frameWidth/2,240,jf.move,this.smallText).setOrigin(0.5)  
+                    this.add.text(this.startX + jf.justFrame*this.frameWidth +this.frameWidth/2,240,jf.move.toString(),this.smallText).setOrigin(0.5)  
 
                     //early = blue
                     graphicsGuide.lineStyle(1,0x0000ff)
@@ -156,7 +155,6 @@ module Tappy {
                 if (!this.stateShowResults)
                 {
                     if (runtime > this.lastFrame * oneFrame ) {
-                        //console.log(this.frame)
                         this.stateShowResults = true;
                     }
                     else{
@@ -175,7 +173,6 @@ module Tappy {
         }
 
         showResults() {
-
 
         }
 
@@ -201,8 +198,8 @@ module Tappy {
 
             if (this.stateRunning && !this.stateShowResults){
 
-                let frame = this.results.add(time)
-                
+                let frame = Phaser.Math.FloorTo(this.results.add(time),-2)
+        
                 let dt = time - this.results.startTime;
 
                 let x = firstClickX + this.speed * dt
@@ -217,13 +214,9 @@ module Tappy {
                 let clickStartLine = new Phaser.Geom.Line(x, 250, x, 330);
                 this.graphics.strokeLineShape(clickStartLine);
 
-                let percent = Math.floor(frame[1] * 100)
-
+                
                 this.mouseButton.push(this.add.text(x-2,360,
-`Frame:${frame[0]}: ${percent}%
-Frame:${frame[0]+1}: ${100-percent}%
-
-Button: ${button}`
+`+${frame}`
                 ,this.smallText));
                 
             }
@@ -234,14 +227,8 @@ Button: ${button}`
                 this.stateRunning = true;
                 this.stateShowResults = false;
                 this.mouseButton.forEach(element => { element.destroy() });
-                
-                this.mouseButton.push(this.add.text(firstClickX,360,
-`Frame: 0: 100%
-Frame: 0: 100%
-                   
-Button: ${button}`,this.smallText));
-                
-                this.results = new resultset(this.sys.game.loop.time)
+
+                this.results = new resultset(this.sys.game.loop.time,this.justFrameMove.JustFrames)
                
                 this.running.setAlpha(0)
                 this.frameRuler.x2 = this.startX
@@ -264,52 +251,112 @@ Button: ${button}`,this.smallText));
 
     const oneFrame = 16.6666666666666666
 
+    export interface justFrames {
+        MoveName: string;
+        MoveNotation: string;
+        Notes: string;
+        JustFrames?: (jfInput)[] | null;
+    }
+    export interface jfInput {
+        id: number;
+        move: number;
+        earlyFrame: number;
+        justFrame: number;
+        latestFrame: number;
+        optional: boolean;
+    }
+
+
+
     declare type buttonPush =
     {
         button?: string
         time: number
-        firstFrame?: number  // ALL I NEED IS EARLYFRAME and the percentage!!! get rid of the whole Calcframe
-        pushFrames?: number
-        chance?: number
+        firstFrame?: number
+        
+        claimedFrame?: number 
+        chanceEarly?: number
+        chanceOK?: number
+        chancePush?: number
+        chanceLate?: number
     }
     class  resultset {
         //1. capture the times that taps were made.
         //2. calc which frames they could have hit on and percentages.
+        //
+        //3. compare with the just frame objects to measure % of success.  - Doing it here.
         
-        //3. compare with the just frame objects to measure % of success.  - Do this as a seperate function. 
+        
 
         public startTime: number;
         buttons:buttonPush[] = []
+        moveFrames:jfInput[] = []
+        pushCount: number;
+        nextUnclaimed: number = 1;
 
-
-        constructor(start:number, button:string = "1") {
+        constructor(start:number, moves:jfInput[], button:string = "1") {
 
             this.startTime = start;
             this.buttons.push({time: start, button: button})
+            this.moveFrames = moves;
         }
 
-        public add(time:number, button:string = "1") :[number,number] {  
+        public add(time:number, button:string = "1") :number {  
 
             let index = this.buttons.push({time: time,button: button})
             this.calcFrames(this.buttons[index-1])
-            return [this.buttons[index-1].firstFrame, this.buttons[index-1].chance]
+            return this.buttons[index-1].firstFrame //changed to just show the .frame
         }
 
-        private calcFrames(currentButton:buttonPush): void {
+        private calcFrames(c:buttonPush): void {
 
-            let timediff = currentButton.time - this.startTime  //eg 19.17/16
+            let timediff = c.time - this.startTime  //eg 19.17/16
             let timeFrame = timediff / oneFrame;   // part through 1st frame. =  1.15
+            
             let timeFloor = Math.floor(timeFrame); // actual frame = 1
             let timePerc = timeFrame-timeFloor;    // perc chance next frame.
 
+            let jf:jfInput;
+            //  c.percentage = 1-timePerc;
 
-            //ISSUE:1 - something is still wrong here..... or it has to be in the clicked method. 
-            //Think this is solved. by changing gameWidth to be a multiple of frameWidth - problem was in clicked()
-
-            //FEATURE:1 - This will need track and add push frames.
-            currentButton.firstFrame = timeFloor
-            currentButton.chance = 1-timePerc;
             
+            //FEATURE:1 - This will need track and add push frames.
+            c.firstFrame = timeFrame
+            
+            
+            // check this button just pushed against all the frames...
+            // careful not to double push?  
+            // DAMMIT - I'm going to double everything... ? does it matter except the push?
+            // What is the point of doing it here???
+            // I need to be able to know the push frames
+            
+            // what I basically want is for button... to know wether it is in the range of a just frame.
+            // or for each just frame, wether a button was pushed in it... Is there a difference?
+            // maybe for each just frame I should claim the first button in it... 
+            
+            
+            if( this.nextUnclaimed < this.moveFrames.length) {
+                jf = this.moveFrames[this.nextUnclaimed]
+            
+    
+                if(c.firstFrame > jf.earlyFrame-1){
+                    if (c.firstFrame < jf.latestFrame+1) { 
+                    //   1 10 14            34 35 35
+                    //14.2 >= 1 <14+1      34.5 
+                    
+                        if (c.firstFrame > jf.justFrame && jf.latestFrame > jf.justFrame) { //I presume push should always be zero and this is called once...but... can change later if need be.
+                            this.pushCount = c.firstFrame - jf.justFrame 
+                            if (this.pushCount < 1) c.chancePush = this.pushCount // going to push the next frame
+                        
+                        }
+                        if (c.firstFrame < jf.earlyFrame) c.chanceEarly = jf.earlyFrame - c.firstFrame // maybe early                        
+      
+    
+                    }else c.chanceLate=1 // late and clamed = dead.
+                    c.claimedFrame = this.nextUnclaimed++; // was on time or late so claimed.
+                }else c.chanceEarly=1  // too early - not claimed... ?? maybe change to some other flag...hmmm. but then the next one might be late.
+
+            }//else we done...
         }
     }
 }

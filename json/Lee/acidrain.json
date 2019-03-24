@@ -30,9 +30,9 @@
       {
         "id": 3,
         "move": 3,
-        "earlyFrame": 35,
-        "justFrame": 36,
-        "latestFrame": 36,
+        "earlyFrame": 34,
+        "justFrame": 35,
+        "latestFrame": 35,
         "optional": false
       }
     ]
