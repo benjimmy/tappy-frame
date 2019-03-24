@@ -7,8 +7,8 @@ module Tappy {
         
         //Globals
         smallText:any = { fontFamily: 'Arial', fontSize: 12, color: '#ffffff' };
-        mediumText:any = { fontFamily: 'Arial', fontSize: 18, color: '#ffffff' }
-        largeText:any = { fontFamily: 'Arial', fontSize: 28, color: '#ffffff' }
+        mediumText:any = { fontFamily: 'Arial', fontSize: 18, color: '#ffffff' };
+        largeText:any = { fontFamily: 'Arial', fontSize: 28, color: '#ffffff' };
         startX:number = 60;
         gameWidth:number = 1080
         speed:number;
@@ -136,8 +136,7 @@ module Tappy {
             });
 
             this.input.on('pointerdown', this.clicked, this);
-
-            //this is for the realtime line - todo, something else - another way...
+            this.input.gamepad.on('down',this.pressed, this);            //this is for the realtime line - todo, something else - another way...
             this.graphics = this.add.graphics({lineStyle: {width:1,color: 0xff0000}});
             this.frameRuler = new Phaser.Geom.Line(this.startX,320,this.startX,320)
             
@@ -180,17 +179,31 @@ module Tappy {
 
         }
 
+        pressed(pad:Phaser.Input.Gamepad.Gamepad,button:Phaser.Input.Gamepad.Button)
+        {
+            //console.log(`tap`)
+            if (button.index < 4 ) {
+                this.tapUpdate(pad.timestamp,button.index)
+            }
+            
+        }
+
         clicked(pointer:Phaser.Input.Pointer) {
             
+            this.tapUpdate(pointer.time,pointer.buttons)
+
+        }
+
+        tapUpdate(time:number,button:number)
+        {
             let firstClickX = this.startX - 1 + this.frameWidth / 2;
             //stateShowResults is a buffer so late clicks don't cause it to start again.
 
             if (this.stateRunning && !this.stateShowResults){
 
-                let frame = this.results.add(pointer.time)
-                console.log(this.frame) // something isn't right.
-
-                let dt = pointer.time - this.results.startTime;
+                let frame = this.results.add(time)
+                
+                let dt = time - this.results.startTime;
 
                 let x = firstClickX + this.speed * dt
 
@@ -208,7 +221,9 @@ module Tappy {
 
                 this.mouseButton.push(this.add.text(x-2,360,
 `Frame:${frame[0]}: ${percent}%
-Frame:${frame[0]+1}: ${100-percent}%`
+Frame:${frame[0]+1}: ${100-percent}%
+
+Button: ${button}`
                 ,this.smallText));
                 
             }
@@ -219,7 +234,13 @@ Frame:${frame[0]+1}: ${100-percent}%`
                 this.stateRunning = true;
                 this.stateShowResults = false;
                 this.mouseButton.forEach(element => { element.destroy() });
-
+                
+                this.mouseButton.push(this.add.text(firstClickX,360,
+`Frame: 0: 100%
+Frame: 0: 100%
+                   
+Button: ${button}`,this.smallText));
+                
                 this.results = new resultset(this.sys.game.loop.time)
                
                 this.running.setAlpha(0)
@@ -236,7 +257,6 @@ Frame:${frame[0]+1}: ${100-percent}%`
                 this.frame = 0
 
             }
-
         }
 
     }

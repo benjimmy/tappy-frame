@@ -5,6 +5,10 @@ var Tappy;
         static initGame() {
             let config = {
                 type: Phaser.WEBGL,
+                input: {
+                    queue: true,
+                    gamepad: true
+                },
                 scale: {
                     mode: Phaser.Scale.FIT,
                     autoCenter: Phaser.Scale.CENTER_BOTH,
@@ -112,7 +116,7 @@ var Tappy;
                 }
             });
             this.input.on('pointerdown', this.clicked, this);
-            //this is for the realtime line - todo, something else - another way...
+            this.input.gamepad.on('down', this.pressed, this); //this is for the realtime line - todo, something else - another way...
             this.graphics = this.add.graphics({ lineStyle: { width: 1, color: 0xff0000 } });
             this.frameRuler = new Phaser.Geom.Line(this.startX, 320, this.startX, 320);
             this.scenefps = this.add.bitmapText(this.gameWidth + this.startX, 32, 'luc', '', 16).setOrigin(1);
@@ -142,13 +146,21 @@ var Tappy;
         }
         showResults() {
         }
+        pressed(pad, button) {
+            //console.log(`tap`)
+            if (button.index < 4) {
+                this.tapUpdate(pad.timestamp, button.index);
+            }
+        }
         clicked(pointer) {
+            this.tapUpdate(pointer.time, pointer.buttons);
+        }
+        tapUpdate(time, button) {
             let firstClickX = this.startX - 1 + this.frameWidth / 2;
             //stateShowResults is a buffer so late clicks don't cause it to start again.
             if (this.stateRunning && !this.stateShowResults) {
-                let frame = this.results.add(pointer.time);
-                console.log(this.frame); // something isn't right.
-                let dt = pointer.time - this.results.startTime;
+                let frame = this.results.add(time);
+                let dt = time - this.results.startTime;
                 let x = firstClickX + this.speed * dt;
                 this.graphics.lineStyle(1, 0xffffff);
                 this.graphics.fillStyle(0xffffff, 0.5);
@@ -159,13 +171,19 @@ var Tappy;
                 this.graphics.strokeLineShape(clickStartLine);
                 let percent = Math.floor(frame[1] * 100);
                 this.mouseButton.push(this.add.text(x - 2, 360, `Frame:${frame[0]}: ${percent}%
-Frame:${frame[0] + 1}: ${100 - percent}%`, this.smallText));
+Frame:${frame[0] + 1}: ${100 - percent}%
+
+Button: ${button}`, this.smallText));
             }
             if (!this.stateRunning) {
                 this.results = null;
                 this.stateRunning = true;
                 this.stateShowResults = false;
                 this.mouseButton.forEach(element => { element.destroy(); });
+                this.mouseButton.push(this.add.text(firstClickX, 360, `Frame: 0: 100%
+Frame: 0: 100%
+                   
+Button: ${button}`, this.smallText));
                 this.results = new resultset(this.sys.game.loop.time);
                 this.running.setAlpha(0);
                 this.frameRuler.x2 = this.startX;
