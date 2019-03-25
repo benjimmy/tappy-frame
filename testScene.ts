@@ -1,4 +1,7 @@
 module Tappy {
+
+    const oneFrame = 16.6666666666666666
+    
     export class TestScene extends Phaser.Scene {
 
         constructor() {
@@ -43,6 +46,7 @@ module Tappy {
         preload() {
             this.load.bitmapFont('luc',['./Fonts/lucidaconsole_0.png','./Fonts/lucidaconsole_1.png'],'./Fonts/lucidaconsole.xml');
             this.load.json('moveFrames','./json/Lee/acidrain.json');
+            //this.load.json('moveFrames','./json/Lee/misttrap.json');
         }
  
         create() {
@@ -63,14 +67,10 @@ module Tappy {
             this.add.text(this.startX,190,this.justFrameMove.Notes,this.mediumText)
 
 
-            /* REDO all this 
+            /* Possible features.
             1. to make the effect of push frames clearer.
             2. to show which buttons are for when
-            3. to show optional buttons.
             4. recommended frames???
-            5. late frames vs push frames.
-
-            I need to know though, if it only ever happens on the first one.
             */
 
             let graphicsGuide = this.add.graphics({lineStyle: {width:1,color: 0xff0000},fillStyle: {color: 0x660000,alpha:1}});
@@ -88,8 +88,7 @@ module Tappy {
 
             this.justFrameMove.JustFrames.forEach(jf => {
 
-                if (!jf.optional) {  // just until I have a better plan
-
+                if (!jf.optional) {  // TODO: I think get rid optionals.
 
         
                     this.add.text(this.startX + jf.justFrame*this.frameWidth +this.frameWidth/2,240,jf.move.toString(),this.smallText).setOrigin(0.5)  
@@ -135,9 +134,11 @@ module Tappy {
             });
 
             this.input.on('pointerdown', this.clicked, this);
+
             this.input.gamepad.on('down',this.pressed, this);            //this is for the realtime line - todo, something else - another way...
+            
             this.graphics = this.add.graphics({lineStyle: {width:1,color: 0xff0000}});
-            this.frameRuler = new Phaser.Geom.Line(this.startX,320,this.startX,320)
+            this.frameRuler = new Phaser.Geom.Line(this.startX,300,this.startX,300)
             
             this.scenefps = this.add.bitmapText(this.gameWidth+this.startX,32,'luc','',16).setOrigin(1);
             this.running = this.add.text( 600,50,'Tap or Click when ready',this.largeText).setOrigin()
@@ -166,19 +167,16 @@ module Tappy {
                 }
                 if (runtime > (this.lastFrame + 15) * oneFrame ) {
                     this.stateRunning = false;
-                    this.running.setAlpha(1);
+                    this.drawResults()
                 }
                 
             }
         }
 
-        showResults() {
-
-        }
 
         pressed(pad:Phaser.Input.Gamepad.Gamepad,button:Phaser.Input.Gamepad.Button)
         {
-            //console.log(`tap`)
+            console.log(`tap ${pad.timestamp}`) //bug1: timestamp not working for some reason, previously fixed with input.queue, but stopped.
             if (button.index < 4 ) {
                 this.tapUpdate(pad.timestamp,button.index)
             }
@@ -198,7 +196,7 @@ module Tappy {
 
             if (this.stateRunning && !this.stateShowResults){
 
-                let frame = Phaser.Math.FloorTo(this.results.add(time),-2)
+                this.results.add(time)
         
                 let dt = time - this.results.startTime;
 
@@ -207,17 +205,12 @@ module Tappy {
                 this.graphics.lineStyle(1, 0xffffff);
                 this.graphics.fillStyle(0xffffff,0.5)
 
-                let clickCircle = new Phaser.Geom.Circle(x,270,this.frameWidth/2)
+                let clickCircle = new Phaser.Geom.Circle(x,265,this.frameWidth/2)
                 this.graphics.strokeCircleShape(clickCircle)
                 this.graphics.fillCircleShape(clickCircle)
 
-                let clickStartLine = new Phaser.Geom.Line(x, 250, x, 330);
-                this.graphics.strokeLineShape(clickStartLine);
-
-                
-                this.mouseButton.push(this.add.text(x-2,360,
-`+${frame}`
-                ,this.smallText));
+                let clickStartLine = new Phaser.Geom.Line(x, 250, x, 300);
+                this.graphics.strokeLineShape(clickStartLine);  
                 
             }
             if (!this.stateRunning)
@@ -236,20 +229,87 @@ module Tappy {
                 this.graphics.lineStyle(1,0xffffff);
 
                 this.graphics.fillStyle(0xffffff,0.5)
-                let clickCircle = new Phaser.Geom.Circle(firstClickX,270,this.frameWidth/2)
+                let clickCircle = new Phaser.Geom.Circle(firstClickX,265,this.frameWidth/2)
                 this.graphics.strokeCircleShape(clickCircle)
                 this.graphics.fillCircleShape(clickCircle)
-                this.graphics.strokeLineShape(new Phaser.Geom.Line(firstClickX,250,firstClickX,330)) //should be halfway through frame... Frame size 6?
+                this.graphics.strokeLineShape(new Phaser.Geom.Line(firstClickX,250,firstClickX,350)) //should be halfway through frame... Frame size 6?
 
                 this.frame = 0
 
             }
         }
 
+        drawResults() {
+            //if (this.results.nextUnclaimed < this.justFrameMove.JustFrames.length) this.results.recalcLast() //fix up ignored if not all are claimed //
+
+            let firstClickX = this.startX - 1 + this.frameWidth / 2;
+            let successCheck: number [] = new Array(this.justFrameMove.JustFrames.length)
+            successCheck[0] = 1 /// Should really treat the first frame properly in the resultset...
+            
+            this.results.buttons.forEach(b => {
+                let y = 340 
+                let dt = b.time - this.results.startTime;
+                let x = firstClickX + this.speed * dt
+                let style = Object.create(this.smallText)
+                
+                if (b.claimedFrame) {
+                    //Calculate success.
+                    successCheck[b.claimedFrame] = (1-b.chanceEarly) * (1-b.chanceLate)
+
+                    //Draw stuff
+                    this.mouseButton.push(this.add.text(x+2,315,
+                        `${Phaser.Math.FloorTo(b.firstFrame,-2)}`
+                    ,this.smallText));
+
+                    let c = b.claimedFrame.toString()
+
+                    if (b.chanceLate == 1){
+                        style.color = '#ff0000' //red
+                    }
+                    else if (b.chanceEarly == 1){
+                        style.color = '#777777'
+                        y += 75
+                        c = 'ignored'
+                    }
+                    else if (b.chanceEarly == 0 && b.chanceLate == 0) {
+                        style.color = '#00ff00' //green
+                    }
+                    else  {
+                        style.color = '#ffff00' //yellow
+                    }
+                    
+                    //draw stuff
+                    let clickStartLine = new Phaser.Geom.Line(x, 300, x, y+75);
+                    this.graphics.strokeLineShape(clickStartLine);
+                    this.mouseButton.push(this.add.text(x+2,y,
+`Button: ${b.button}
+Early %: ${Phaser.Math.FloorTo(b.chanceEarly,-4)}
+Late %: ${Phaser.Math.FloorTo(b.chanceLate,-4)}
+Pushframes: ${Phaser.Math.FloorTo(b.chancePush,-4)}
+Frame: ${c}`                        
+                        ,style))
+                }
+                else {//may be all claimed now.
+                    /*style.color ='#666666'
+                    this.mouseButton.push(this.add.text(x+2, y+70, 
+`Button: ${b.button}
+n/a`
+,style)) */  // First and any after last...
+                }
+
+            });
+
+        //Calculate result
+        let successResult = Phaser.Math.FloorTo(successCheck.reduce(function(product,value){return product*value}) *100,-2)
+        
+        this.running.setText(`${successResult}% success - Tap to try again`)
+        this.running.setAlpha(1)
+        }
+
     }
 
 
-    const oneFrame = 16.6666666666666666
+
 
     export interface justFrames {
         MoveName: string;
@@ -267,32 +327,30 @@ module Tappy {
     }
 
 
-
+// Should I do a proper class instead of this weird optional set.?
     declare type buttonPush =
     {
         button?: string
         time: number
-        firstFrame?: number
+        firstFrame?: number     
         
-        claimedFrame?: number 
-        chanceEarly?: number
+        claimedFrame?: number //this
+        chanceEarly?: number  //this
         chanceOK?: number
-        chancePush?: number
-        chanceLate?: number
+        chancePush?: number 
+        chanceLate?: number   //this
     }
     class  resultset {
         //1. capture the times that taps were made.
         //2. calc which frames they could have hit on and percentages.
         //
         //3. compare with the just frame objects to measure % of success.  - Doing it here.
-        
-        
-
         public startTime: number;
         buttons:buttonPush[] = []
         moveFrames:jfInput[] = []
-        pushCount: number;
-        nextUnclaimed: number = 1;
+        pushCount: number = 0;
+        pushFrames: number = 0;
+        public nextUnclaimed: number = 1;
 
         constructor(start:number, moves:jfInput[], button:string = "1") {
 
@@ -301,14 +359,38 @@ module Tappy {
             this.moveFrames = moves;
         }
 
-        public add(time:number, button:string = "1") :number {  
+        public add(time:number, button:string = "1") {  
 
             let index = this.buttons.push({time: time,button: button})
             this.calcFrames(this.buttons[index-1])
-            return this.buttons[index-1].firstFrame //changed to just show the .frame
+        }
+        
+        public recalcLast() {
+            
+            // find the last claim then go forwards.
+            
+            // TODO: but it doesn really work how I want... should show early then push the next one out as well.
+            // two situations: 1: I have hit the 3rd but early for 4th... this works now.
+            //                 2: I have missed both the 3rd and 4th - this doesn't because I find the 4th as a late.
+            //                    Ideally the 3rd and 4th would now show as early..
+            //                 3: What if I add a 3rd actual early, then 4 and 5 should match to 3 and 4. but they are early / late too.  Ugly. Maybe I should just get all the closest misses.
+            //                 4: what if I hit 1,2,3 but do a 4 and 5 on either side... I should just do them grey but show the numbers
+            // If I can tell the difference - I can fix it
+            // Dont worry about this... Next Calc the total chance ..
+
+            let lastClaim = 0 // what if I only click once?
+            for (let i = 0; i < this.buttons.length; i++) {
+                if (this.buttons[i].claimedFrame) lastClaim = i
+            }
+            lastClaim++;
+
+            while (lastClaim < this.buttons.length){  // this is dumb... It will only ever calc the last one anyway - unless they were both before the 3rd.
+                this.calcFrames(this.buttons[lastClaim], true)
+                lastClaim++
+            }
         }
 
-        private calcFrames(c:buttonPush): void {
+        private calcFrames(c:buttonPush, redo:boolean =true): void {
 
             let timediff = c.time - this.startTime  //eg 19.17/16
             let timeFrame = timediff / oneFrame;   // part through 1st frame. =  1.15
@@ -322,40 +404,36 @@ module Tappy {
             
             //FEATURE:1 - This will need track and add push frames.
             c.firstFrame = timeFrame
-            
-            
-            // check this button just pushed against all the frames...
             // careful not to double push?  
-            // DAMMIT - I'm going to double everything... ? does it matter except the push?
-            // What is the point of doing it here???
-            // I need to be able to know the push frames
-            
-            // what I basically want is for button... to know wether it is in the range of a just frame.
-            // or for each just frame, wether a button was pushed in it... Is there a difference?
-            // maybe for each just frame I should claim the first button in it... 
-            
-            
+            // Q: What is the point of doing it here??? A: I need to be able to know the push frames
+            // for each just frame I should claim the first button in it... 
             if( this.nextUnclaimed < this.moveFrames.length) {
                 jf = this.moveFrames[this.nextUnclaimed]
             
-    
-                if(c.firstFrame > jf.earlyFrame-1){
-                    if (c.firstFrame < jf.latestFrame+1) { 
-                    //   1 10 14            34 35 35
-                    //14.2 >= 1 <14+1      34.5 
-                    
-                        if (c.firstFrame > jf.justFrame && jf.latestFrame > jf.justFrame) { //I presume push should always be zero and this is called once...but... can change later if need be.
-                            this.pushCount = c.firstFrame - jf.justFrame 
-                            if (this.pushCount < 1) c.chancePush = this.pushCount // going to push the next frame
+                c.chanceEarly = c.chanceLate = 0;
+                if(c.firstFrame > this.pushCount + jf.earlyFrame-1){
+                    //at least partially in on early side
+                    if (c.firstFrame < this.pushCount + jf.latestFrame+1) { 
+                        //at least partially in on late side
                         
+                        if (c.firstFrame < jf.earlyFrame + Math.floor(this.pushCount)) c.chanceEarly = jf.earlyFrame + this.pushCount - c.firstFrame // maybe early  
+                            //Wrong.. need to multiply not add percentage. but multiple frames needs to be thought about
+                        if (c.firstFrame > jf.latestFrame + this.pushCount) c.chanceLate = c.firstFrame - (jf.latestFrame + this.pushCount) // mayber late
+                                        
+                        if (c.firstFrame > jf.justFrame && jf.latestFrame > jf.justFrame) { //I presume push should always be zero and this is called once...but... can change later if need be.
+                            this.pushFrames = c.firstFrame - jf.justFrame
+                            this.pushCount = Math.floor(this.pushFrames) //only guarenteed frames.
                         }
-                        if (c.firstFrame < jf.earlyFrame) c.chanceEarly = jf.earlyFrame - c.firstFrame // maybe early                        
-      
-    
                     }else c.chanceLate=1 // late and clamed = dead.
                     c.claimedFrame = this.nextUnclaimed++; // was on time or late so claimed.
-                }else c.chanceEarly=1  // too early - not claimed... ?? maybe change to some other flag...hmmm. but then the next one might be late.
-
+                    c.chancePush = this.pushFrames // not sure if I need this...
+                }else {
+                    c.chanceEarly=1  //trying to fix situations where not enough presses. or not enough matches.  
+                    if (redo) { // maybe I could always do this but just not increment...????
+                        c.claimedFrame = this.nextUnclaimed;
+                        c.chancePush = this.pushFrames;
+                    }
+                }
             }//else we done...
         }
     }

@@ -21,14 +21,6 @@
       },
       {
         "id": 2,
-        "move": 3,
-        "earlyFrame": 14,
-        "justFrame": 20,
-        "latestFrame": 30,
-        "optional": true
-      },
-      {
-        "id": 3,
         "move": 4,
         "earlyFrame": 31,
         "justFrame": 31,
