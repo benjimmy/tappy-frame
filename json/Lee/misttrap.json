@@ -14,7 +14,7 @@
       {
         "id": 1,
         "move": 3,
-        "earlyFrame": 2,
+        "earlyFrame": 1,
         "justFrame": 13,
         "latestFrame": 13,
         "optional": false

@@ -10,7 +10,7 @@ module Tappy{
             let config = {
                 type: Phaser.WEBGL,
                 input: {
-                    queue: true,
+                    //queue: true,
                     gamepad: true
                 },
                 scale: {
@@ -19,7 +19,7 @@ module Tappy{
                     width: 1200,
                     height: 675
                 },                
-                scene: [TestScene],
+                scene: [FrameGame],
                 banner: true,
                 title: 'Tappy',
                 version: '1.0.0'

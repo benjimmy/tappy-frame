@@ -2,7 +2,7 @@ module Tappy {
 
     const oneFrame = 16.6666666666666666
     
-    export class TestScene extends Phaser.Scene {
+    export class FrameGame extends Phaser.Scene {
 
         constructor() {
             super({key:'TestScene'});
@@ -14,11 +14,12 @@ module Tappy {
         startX:number = 60;
         gameWidth:number = 1080
         speed:number;
-    //Phaser.Math.FloorTo
+
         //moveFrameObject
         justFrameMove:justFrames;
         frameWidth:number;
-        lastFrame:number;
+        lastFrameDisplayed:number;
+        pushFrames:number =0;
 
         //moveDisplay
         frameBoxes:Phaser.Geom.Rectangle[] = [];
@@ -37,7 +38,7 @@ module Tappy {
         //run objects
         sceneTime:Phaser.GameObjects.BitmapText;  
         running:Phaser.GameObjects.Text;          
-        mouseButton: Phaser.GameObjects.Text[] = [];
+        resultsText: Phaser.GameObjects.Text[] = [];
         scenefps:Phaser.GameObjects.BitmapText;
 
         //result objects
@@ -45,6 +46,8 @@ module Tappy {
 
         preload() {
             this.load.bitmapFont('luc',['./Fonts/lucidaconsole_0.png','./Fonts/lucidaconsole_1.png'],'./Fonts/lucidaconsole.xml');
+            //this.load.json('moveFrames','./json/Paul/demoman.json');
+
             this.load.json('moveFrames','./json/Lee/acidrain.json');
             //this.load.json('moveFrames','./json/Lee/misttrap.json');
         }
@@ -53,14 +56,19 @@ module Tappy {
             this.input.mouse.disableContextMenu();
 
             this.justFrameMove = <justFrames> this.cache.json.get('moveFrames');
+            
+            
+            this.justFrameMove.JustFrames.forEach(f => {
+                this.pushFrames += f.latestFrame - f.justFrame
+            });
 
-            this.lastFrame = this.justFrameMove.JustFrames[this.justFrameMove.JustFrames.length-1].latestFrame + 5;
-            this.frameWidth = Math.round(this.gameWidth / this.lastFrame);  //round it into clean frame size
-            this.gameWidth = this.frameWidth * this.lastFrame               //multiply it back into clean gamewidth 
+            this.lastFrameDisplayed = this.justFrameMove.JustFrames[this.justFrameMove.JustFrames.length-1].latestFrame + this.pushFrames + 5;
+            this.frameWidth = Math.round(this.gameWidth / this.lastFrameDisplayed);  //round it into clean frame size
+            this.gameWidth = this.frameWidth * this.lastFrameDisplayed               //multiply it back into clean gamewidth 
                                                                             // might be a practical minimum size for this. 3 frames probably... 
                                                                             // 3 frames times 60 = 180 + edges...
 
-            this.speed = this.gameWidth / this.lastFrame / oneFrame;        //speed still less accurate probably... only for realtime
+            this.speed = this.gameWidth / this.lastFrameDisplayed / oneFrame;        //speed still less accurate probably... only for realtime
         
             this.add.text(this.startX,150,this.justFrameMove.MoveName,this.mediumText)
             this.add.text(this.startX,170,this.justFrameMove.MoveNotation,this.mediumText)
@@ -75,7 +83,7 @@ module Tappy {
 
             let graphicsGuide = this.add.graphics({lineStyle: {width:1,color: 0xff0000},fillStyle: {color: 0x660000,alpha:1}});
             // make the whole set red.
-            for (let i=0;i<=this.lastFrame;i++) {
+            for (let i=0;i<=this.lastFrameDisplayed;i++) {
                 this.add.text(this.startX + i*this.frameWidth + this.frameWidth/2,290,i.toString(),this.smallText).setOrigin(0.5)
                 this.frameBoxes.push(new Phaser.Geom.Rectangle(this.startX + i*this.frameWidth,250,this.frameWidth-2,30))
             }
@@ -86,10 +94,16 @@ module Tappy {
             });
 
 
+            let localPushCount = 0
             this.justFrameMove.JustFrames.forEach(jf => {
-
+            
                 if (!jf.optional) {  // TODO: I think get rid optionals.
 
+                    //JF bounds and text
+                    this.drawBounds(this.frameBoxes[jf.earlyFrame].left,this.frameBoxes[jf.justFrame].right,230,250,0xffffff)
+                    for (let i = 1; i <= localPushCount; i++) {
+                        this.drawBounds(this.frameBoxes[jf.earlyFrame+i].left,this.frameBoxes[jf.justFrame+i].right,232,250,0x550077)                         
+                    }
         
                     this.add.text(this.startX + jf.justFrame*this.frameWidth +this.frameWidth/2,240,jf.move.toString(),this.smallText).setOrigin(0.5)  
 
@@ -109,6 +123,7 @@ module Tappy {
                         graphicsGuide.fillRectShape(this.frameBoxes[i])
                         graphicsGuide.strokeRectShape(this.frameBoxes[i])
                         graphicsGuide.strokeLineShape(new Phaser.Geom.Line(this.frameBoxes[i].right,230,this.frameBoxes[i].right,250))
+                        localPushCount++; // Again assuming only one push frames... 
                     }
                     graphicsGuide.strokeLineShape(new Phaser.Geom.Line(this.frameBoxes[jf.justFrame].right,230,this.frameBoxes[jf.latestFrame].right,230))
 
@@ -120,24 +135,17 @@ module Tappy {
                     graphicsGuide.fillRectShape(this.frameBoxes[jf.justFrame])
                     graphicsGuide.strokeRectShape(this.frameBoxes[jf.justFrame])
 
-            //JF bounds and text
-            let leftBounds = this.frameBoxes[jf.earlyFrame].left
-            let rightBounds = this.frameBoxes[jf.justFrame].right
-            graphicsGuide.lineStyle(1,0xffffff)
-            
-            graphicsGuide.strokeLineShape(new Phaser.Geom.Line(leftBounds,230,rightBounds,230))
-            graphicsGuide.strokeLineShape(new Phaser.Geom.Line(leftBounds,230,leftBounds,250))
-            graphicsGuide.strokeLineShape(new Phaser.Geom.Line(rightBounds,230,rightBounds,250))
+
 
             }   
                
             });
 
+            //set up input handdlers: // TODO add keyboard
             this.input.on('pointerdown', this.clicked, this);
-
-            this.input.gamepad.on('down',this.pressed, this);            //this is for the realtime line - todo, something else - another way...
+            this.input.gamepad.on('down',this.pressed, this);           
             
-            this.graphics = this.add.graphics({lineStyle: {width:1,color: 0xff0000}});
+            this.graphics = this.add.graphics({lineStyle: {width:1,color: 0xff0000}}); //this is for the realtime line - todo, something else - another way...
             this.frameRuler = new Phaser.Geom.Line(this.startX,300,this.startX,300)
             
             this.scenefps = this.add.bitmapText(this.gameWidth+this.startX,32,'luc','',16).setOrigin(1);
@@ -145,9 +153,18 @@ module Tappy {
             
         }
 
+        drawBounds(x1:number,x2:number,y1:number,y2:number,colour:number){
+            let gDraw = this.add.graphics({lineStyle: {width:1,color: colour}})
+                    
+            gDraw.strokeLineShape(new Phaser.Geom.Line(x1,y1,x2,y1))
+            gDraw.strokeLineShape(new Phaser.Geom.Line(x1,y1,x1,y2))
+            gDraw.strokeLineShape(new Phaser.Geom.Line(x2,y1,x2,y2))            
 
-        update(timestep,dt)
-        {
+        }
+
+
+        update(timestep,dt){
+        
             this.scenefps.setText(Phaser.Math.FloorTo(this.sys.game.loop.actualFps,-2).toString()); //seems slow - think i should do it myself. ? How often then?
                   
             if (this.stateRunning ) {
@@ -155,7 +172,7 @@ module Tappy {
                 var runtime = this.sys.game.loop.time - this.results.startTime
                 if (!this.stateShowResults)
                 {
-                    if (runtime > this.lastFrame * oneFrame ) {
+                    if (runtime > this.lastFrameDisplayed * oneFrame ) {
                         this.stateShowResults = true;
                     }
                     else{
@@ -165,7 +182,7 @@ module Tappy {
                         this.graphics.strokeLineShape(this.frameRuler);  //I want to uses
                     }
                 }
-                if (runtime > (this.lastFrame + 15) * oneFrame ) {
+                if (runtime > (this.lastFrameDisplayed + 15) * oneFrame ) {
                     this.stateRunning = false;
                     this.drawResults()
                 }
@@ -176,9 +193,11 @@ module Tappy {
 
         pressed(pad:Phaser.Input.Gamepad.Gamepad,button:Phaser.Input.Gamepad.Button)
         {
-            console.log(`tap ${pad.timestamp}`) //bug1: timestamp not working for some reason, previously fixed with input.queue, but stopped.
+            //needs input.queue in phaser 3.16 but timestamp still doesn't update so
+            //input queue also stops the mid frame timestamp. 
+            
             if (button.index < 4 ) {
-                this.tapUpdate(pad.timestamp,button.index)
+                this.tapUpdate(this.sys.game.loop.time,button.index)
             }
             
         }
@@ -219,7 +238,7 @@ module Tappy {
               
                 this.stateRunning = true;
                 this.stateShowResults = false;
-                this.mouseButton.forEach(element => { element.destroy() });
+                this.resultsText.forEach(element => { element.destroy() });
 
                 this.results = new resultset(this.sys.game.loop.time,this.justFrameMove.JustFrames)
                
@@ -252,54 +271,95 @@ module Tappy {
                 let x = firstClickX + this.speed * dt
                 let style = Object.create(this.smallText)
                 
+                let pushEarly = 0
+                let pushLate = 0
+
                 if (b.claimedFrame) {
-                    //Calculate success.
-                    successCheck[b.claimedFrame] = (1-b.chanceEarly) * (1-b.chanceLate)
+                    //Calculate success.  Should move this into the Results object
+
+                    if (b.chanceEarly > 0 ) { 
+                        pushEarly = (b.chanceEarly < 1) ? (1-b.chanceEarly)*(1-b.chancePush): 0 
+                                    // early = fail push = fail, only success i not (early * not push)
+                                    // I don't need to check chanceEarly < 1 as it will not be claimed... leaving it in case I change the claim system.     
+                        successCheck[b.claimedFrame] = pushEarly
+                    }
+                    else if (b.chanceLate > 0) {
+                        // todo, can probably simply this into 1 assignment.
+                        if (b.chanceLate < 1) {
+                            let earlyFactor = (b.chanceFirst > 0) ? 1-b.chancePush: 1  //should reduce chances if push frames blow out of early.
+                            pushLate = (earlyFactor*(1-b.chanceLate))+(b.chanceLate*b.chancePush)
+                                    // not late = okay. late only okay if push
+                                    // 1-late*1(push chance deosn't matter *) + (late*push)
+                                    // *unless it is a true just frame which I havent dealt with.
+                        }
+                        else if (b.chanceLate - 1 < 1) {
+                                    // only success if push
+                                    pushLate = (1-( b.chanceLate -1))*b.chancePush
+                                    // range 0 to .9999
+                                    // if it is exactly 0 - then chance is = push chance 
+                                 
+                        }
+
+                        successCheck[b.claimedFrame] = pushLate 
+                    }
+                    else successCheck[b.claimedFrame] = (b.chanceFirst > 0) ? (1-b.chancePush)*b.chanceFirst + 1-b.chanceFirst: 1
+                                                                                //chance no push * chance first + chance 2nd * 1 as success if push or not.                                                                    
 
                     //Draw stuff
-                    this.mouseButton.push(this.add.text(x+2,315,
+
+                    console.log(successCheck[b.claimedFrame])
+                    let color = Phaser.Display.Color.HSVToRGB(successCheck[b.claimedFrame]*.3,1,1) //use Phaser.Display.Color to do calc
+                    style.color = Phaser.Display.Color.RGBToString(color.r,color.g,color.b,color.a,'#')
+
+                    this.resultsText.push(this.add.text(x+2,315,
                         `${Phaser.Math.FloorTo(b.firstFrame,-2)}`
                     ,this.smallText));
 
                     let c = b.claimedFrame.toString()
 
                     if (b.chanceLate == 1){
-                        style.color = '#ff0000' //red
+                        //style.color = '#ff0000' //red
                     }
                     else if (b.chanceEarly == 1){
                         style.color = '#777777'
                         y += 75
-                        c = 'ignored'
+                        c = 'n/a'
                     }
                     else if (b.chanceEarly == 0 && b.chanceLate == 0) {
-                        style.color = '#00ff00' //green
+                        //style.color = '#00ff00' //green
                     }
                     else  {
-                        style.color = '#ffff00' //yellow
+                        //style.color = '#ffff00' //yellow
+
                     }
                     
-                    //draw stuff
-                    let clickStartLine = new Phaser.Geom.Line(x, 300, x, y+75);
+                    
+                    //notes
+                    let clickStartLine = new Phaser.Geom.Line(x, 300, x, y+90);
                     this.graphics.strokeLineShape(clickStartLine);
-                    this.mouseButton.push(this.add.text(x+2,y,
+                    this.resultsText.push(this.add.text(x+2,y,
 `Button: ${b.button}
 Early %: ${Phaser.Math.FloorTo(b.chanceEarly,-4)}
 Late %: ${Phaser.Math.FloorTo(b.chanceLate,-4)}
-Pushframes: ${Phaser.Math.FloorTo(b.chancePush,-4)}
-Frame: ${c}`                        
+Push %: ${Phaser.Math.FloorTo(b.chancePush,-4)}
+1st %: ${Phaser.Math.FloorTo(b.chanceFirst,-4)}
+PCount: ${this.results.pushCount}
+Success%: ${Phaser.Math.FloorTo(successCheck[b.claimedFrame]*100,-4)}
+JustF: ${c}`                        
                         ,style))
                 }
-                else {//may be all claimed now.
+                else {//first and maybe last sometimes.
                     /*style.color ='#666666'
                     this.mouseButton.push(this.add.text(x+2, y+70, 
 `Button: ${b.button}
 n/a`
 ,style)) */  // First and any after last...
                 }
-
             });
 
         //Calculate result
+
+
         let successResult = Phaser.Math.FloorTo(successCheck.reduce(function(product,value){return product*value}) *100,-2)
         
         this.running.setText(`${successResult}% success - Tap to try again`)
@@ -307,8 +367,6 @@ n/a`
         }
 
     }
-
-
 
 
     export interface justFrames {
@@ -336,7 +394,7 @@ n/a`
         
         claimedFrame?: number //this
         chanceEarly?: number  //this
-        chanceOK?: number
+        chanceFirst?: number
         chancePush?: number 
         chanceLate?: number   //this
     }
@@ -394,44 +452,40 @@ n/a`
 
             let timediff = c.time - this.startTime  //eg 19.17/16
             let timeFrame = timediff / oneFrame;   // part through 1st frame. =  1.15
-            
-            let timeFloor = Math.floor(timeFrame); // actual frame = 1
-            let timePerc = timeFrame-timeFloor;    // perc chance next frame.
-
+     
             let jf:jfInput;
             //  c.percentage = 1-timePerc;
 
             
-            //FEATURE:1 - This will need track and add push frames.
             c.firstFrame = timeFrame
-            // careful not to double push?  
-            // Q: What is the point of doing it here??? A: I need to be able to know the push frames
-            // for each just frame I should claim the first button in it... 
             if( this.nextUnclaimed < this.moveFrames.length) {
                 jf = this.moveFrames[this.nextUnclaimed]
             
                 c.chanceEarly = c.chanceLate = 0;
-                if(c.firstFrame > this.pushCount + jf.earlyFrame-1){
-                    //at least partially in on early side
-                    if (c.firstFrame < this.pushCount + jf.latestFrame+1) { 
-                        //at least partially in on late side
+                if(c.firstFrame > jf.earlyFrame + this.pushCount -1  ){ //at least partially in on early side
+                    c.chanceFirst = (c.firstFrame < jf.earlyFrame + this.pushCount + 1)? jf.earlyFrame+this.pushCount+1-c.firstFrame:0 //need this incase we are pushing out of first frame
+                    c.chancePush = this.pushFrames - this.pushCount // don't do it the first time
+                    if (c.firstFrame < jf.latestFrame + this.pushCount + 1 ) { //at least partially in on late side
                         
-                        if (c.firstFrame < jf.earlyFrame + Math.floor(this.pushCount)) c.chanceEarly = jf.earlyFrame + this.pushCount - c.firstFrame // maybe early  
-                            //Wrong.. need to multiply not add percentage. but multiple frames needs to be thought about
+                        if (c.firstFrame < jf.earlyFrame + this.pushCount) c.chanceEarly = jf.earlyFrame + this.pushCount - c.firstFrame // maybe early
+                            // keeping percent justFrame seperate calculate it in the results. (earlyc*(1-pushc)+pushc) = true early chance ***WRONG!
+
                         if (c.firstFrame > jf.latestFrame + this.pushCount) c.chanceLate = c.firstFrame - (jf.latestFrame + this.pushCount) // mayber late
+                            // (2 *earlyC * pushc) - earlyc -pushc -1 = true late chance
                                         
                         if (c.firstFrame > jf.justFrame && jf.latestFrame > jf.justFrame) { //I presume push should always be zero and this is called once...but... can change later if need be.
                             this.pushFrames = c.firstFrame - jf.justFrame
                             this.pushCount = Math.floor(this.pushFrames) //only guarenteed frames.
+                            if (this.pushFrames > jf.latestFrame - jf.justFrame) this.pushFrames = this.pushCount // probably dont need this if I read late first but...?
                         }
-                    }else c.chanceLate=1 // late and clamed = dead.
+                    }else c.chanceLate = c.firstFrame - (jf.latestFrame + this.pushCount)// late and clamed = 
                     c.claimedFrame = this.nextUnclaimed++; // was on time or late so claimed.
-                    c.chancePush = this.pushFrames // not sure if I need this...
+                    
                 }else {
                     c.chanceEarly=1  //trying to fix situations where not enough presses. or not enough matches.  
                     if (redo) { // maybe I could always do this but just not increment...????
                         c.claimedFrame = this.nextUnclaimed;
-                        c.chancePush = this.pushFrames;
+                        c.chancePush = this.pushFrames - this.pushCount;
                     }
                 }
             }//else we done...
