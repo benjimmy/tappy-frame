@@ -44,7 +44,9 @@ var Tappy;
         }
         preload() {
             this.load.bitmapFont('luc', ['./Fonts/lucidaconsole_0.png', './Fonts/lucidaconsole_1.png'], './Fonts/lucidaconsole.xml');
-            this.load.json('moveFrames', './json/Lee/acidrain.json');
+            this.load.json('moveFrames', './json/Paul/demoman.json');
+            //this.load.json('moveFrames','./json/Lee/acidrain.json');
+            //this.load.json('moveFrames','./json/Lee/misttrap.json');
         }
         create() {
             this.input.mouse.disableContextMenu();
@@ -176,30 +178,152 @@ Frame:${frame[0] + 1}: ${100 - percent}%`, this.smallText));
                 this.frame = 0;
             }
         }
+        drawResults() {
+            //if (this.results.nextUnclaimed < this.justFrameMove.JustFrames.length) this.results.recalcLast() //fix up ignored if not all are claimed //
+            let firstClickX = this.startX - 1 + this.frameWidth / 2;
+            this.results.buttons.forEach(b => {
+                let y = 340;
+                let dt = b.time - this.results.startTime;
+                let x = firstClickX + this.speed * dt;
+                let style = Object.create(this.smallText);
+                //Draw stuff
+                this.resultsText.push(this.add.text(x + 2, 315, `${Phaser.Math.FloorTo(b.firstFrame, -2)}`, this.smallText));
+                let colour = new Phaser.Display.Color().setFromHSV(b.chanceOK * .3, 1, 1);
+                style.color = Phaser.Display.Color.RGBToString(colour.red, colour.green, colour.blue, colour.alpha, '#');
+                let claim;
+                if (b.chanceEarly == 1 || b.claimedFrame == null) {
+                    style.color = '#777777'; // grey 
+                    y += 120;
+                    claim = 'n/a';
+                }
+                else
+                    claim = b.claimedFrame.toString();
+                //notes
+                let clickStartLine = new Phaser.Geom.Line(x, 300, x, y + 120);
+                this.graphics.strokeLineShape(clickStartLine);
+                this.resultsText.push(this.add.text(x + 2, y, `Button:${b.button}
+Early %:${Phaser.Math.FloorTo(b.chanceEarly, -4)}
+Late %: ${Phaser.Math.FloorTo(b.chanceLate, -4)}
+Push %: ${Phaser.Math.FloorTo(b.chancePush, -4)}
+PCount: ${this.results.pushCount}
+1st %:  ${Phaser.Math.FloorTo(b.chanceFirst, -4)}
+OK%:    ${Phaser.Math.FloorTo(b.chanceOK * 100, -4)}
+JustF:  ${claim}`, style));
+            });
+            let successResult = this.results.getResult(); //final result
+            this.running.setText(`${successResult}% success - Tap to try again`);
+            this.running.setAlpha(1);
+        }
     }
     Tappy.TestScene = TestScene;
     const oneFrame = 16.6666666666666666;
     class resultset {
         constructor(start, button = "1") {
             this.buttons = [];
+            this.moveFrames = [];
+            this.pushCount = 0;
+            this.pushFrames = 0;
+            this.nextUnclaimed = 1;
+            this.chanceSuccess = 0;
             this.startTime = start;
-            this.buttons.push({ time: start, button: button });
+            this.buttons.push({ time: start, button: button, firstFrame: 0, claimedFrame: 0, chanceEarly: 0, chanceFirst: 0, chanceLate: 0, chancePush: 0, chanceOK: 1 });
+            this.moveFrames = moves;
         }
         add(time, button = "1") {
             let index = this.buttons.push({ time: time, button: button });
             this.calcFrames(this.buttons[index - 1]);
             return [this.buttons[index - 1].firstFrame, this.buttons[index - 1].chance];
         }
-        calcFrames(currentButton) {
-            let timediff = currentButton.time - this.startTime; //eg 19.17/16
+        getResult() {
+            let chances = [];
+            this.buttons.forEach(b => {
+                if (b.claimedFrame > 0 && b.chanceEarly < 1)
+                    chances.push(b.chanceOK);
+            });
+            return Phaser.Math.FloorTo(chances.reduce(function (product, value) { return product * value; }) * 100, -2);
+        }
+        recalcLast() {
+            let lastClaim = 0; // what if I only click once?
+            for (let i = 0; i < this.buttons.length; i++) {
+                if (this.buttons[i].claimedFrame)
+                    lastClaim = i;
+            }
+            lastClaim++;
+            while (lastClaim < this.buttons.length) { // this is dumb... It will only ever calc the last one anyway - unless they were both before the 3rd.
+                this.calcFrames(this.buttons[lastClaim], true);
+                lastClaim++;
+            }
+        }
+        calcFrames(c, redo = true) {
+            let timediff = c.time - this.startTime; //eg 19.17/16
             let timeFrame = timediff / oneFrame; // part through 1st frame. =  1.15
-            let timeFloor = Math.floor(timeFrame); // actual frame = 1
-            let timePerc = timeFrame - timeFloor; // perc chance next frame.
-            //ISSUE:1 - something is still wrong here..... or it has to be in the clicked method. 
-            //Think this is solved. by changing gameWidth to be a multiple of frameWidth - problem was in clicked()
-            //FEATURE:1 - This will need track and add push frames.
-            currentButton.firstFrame = timeFloor;
-            currentButton.chance = 1 - timePerc;
+            let jf;
+            //  c.percentage = 1-timePerc;
+            c.firstFrame = timeFrame;
+            if (this.nextUnclaimed < this.moveFrames.length) {
+                jf = this.moveFrames[this.nextUnclaimed];
+                c.chanceEarly = c.chanceLate = 0;
+                if (c.firstFrame > jf.earlyFrame + this.pushCount - 1) { //at least partially in on early side
+                    c.chanceFirst = (c.firstFrame < jf.earlyFrame + this.pushCount + 1) ? jf.earlyFrame + this.pushCount + 1 - c.firstFrame : 0; //need this incase we are pushing out of first frame
+                    c.chancePush = this.pushFrames - this.pushCount; // don't do it the first time
+                    if (c.firstFrame < jf.latestFrame + this.pushCount + 1) { //at least partially in on late side
+                        if (c.firstFrame < jf.earlyFrame + this.pushCount)
+                            c.chanceEarly = jf.earlyFrame + this.pushCount - c.firstFrame; // maybe early
+                        // keeping percent justFrame seperate calculate it in the results. (earlyc*(1-pushc)+pushc) = true early chance ***WRONG!
+                        if (c.firstFrame > jf.latestFrame + this.pushCount)
+                            c.chanceLate = c.firstFrame - (jf.latestFrame + this.pushCount); // mayber late
+                        // (2 *earlyC * pushc) - earlyc -pushc -1 = true late chance
+                        if (c.firstFrame > jf.justFrame && jf.latestFrame > jf.justFrame) { //I presume push should always be zero and this is called once...but... can change later if need be.
+                            this.pushFrames = c.firstFrame - jf.justFrame;
+                            this.pushCount = Math.floor(this.pushFrames); //only guarenteed frames.
+                            if (this.pushFrames > jf.latestFrame - jf.justFrame)
+                                this.pushFrames = this.pushCount; // probably dont need this if I read late first but...?
+                        }
+                    }
+                    else
+                        c.chanceLate = c.firstFrame - (jf.latestFrame + this.pushCount); // late and clamed = 
+                    c.claimedFrame = this.nextUnclaimed++; // was on time or late so claimed.
+                }
+                else {
+                    c.chanceEarly = 1; //trying to fix situations where not enough presses. or not enough matches.  
+                    if (redo) { // maybe I could always do this but just not increment...????
+                        c.claimedFrame = this.nextUnclaimed;
+                        c.chancePush = this.pushFrames - this.pushCount;
+                    }
+                }
+            } //else we done...
+            //moving out from draw function... step 1 - get it working / step 2 - move it up.
+            let pushEarly = 0;
+            let pushLate = 0;
+            if (c.claimedFrame) {
+                //Calculate success.  Should move this into the Results object
+                if (c.chanceEarly > 0) {
+                    pushEarly = (c.chanceEarly < 1) ? (1 - c.chanceEarly) * (1 - c.chancePush) : 0;
+                    // early = fail push = fail, only success i not (early * not push)
+                    // I don't need to check chanceEarly < 1 as it will not be claimed... leaving it in case I change the claim system.     
+                    c.chanceOK = pushEarly;
+                }
+                else if (c.chanceLate > 0) {
+                    // todo, can probably simply this into 1 assignment.
+                    if (c.chanceLate < 1) {
+                        let earlyFactor = (c.chanceFirst > 0) ? 1 - c.chancePush : 1; //should reduce chances if push frames blow out of early.
+                        pushLate = (earlyFactor * (1 - c.chanceLate)) + (c.chanceLate * c.chancePush);
+                        // not late = okay. late only okay if push
+                        // 1-late*1(push chance deosn't matter *) + (late*push)
+                        // *unless it is a true just frame which I havent dealt with.
+                    }
+                    else if (c.chanceLate - 1 < 1) {
+                        // only success if push
+                        pushLate = (1 - (c.chanceLate - 1)) * c.chancePush;
+                        // range 0 to .9999
+                        // if it is exactly 0 - then chance is = push chance 
+                    }
+                    c.chanceOK = pushLate;
+                }
+                else
+                    c.chanceOK = (c.chanceFirst > 0) ? (1 - c.chancePush) * c.chanceFirst + 1 - c.chanceFirst : 1;
+                //chance no push * chance first + chance 2nd * 1 as success if push or not.                                                                    
+            }
         }
     }
 })(Tappy || (Tappy = {}));
