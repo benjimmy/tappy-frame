@@ -46,9 +46,9 @@ module Tappy {
 
         preload() {
             this.load.bitmapFont('luc',['./Fonts/lucidaconsole_0.png','./Fonts/lucidaconsole_1.png'],'./Fonts/lucidaconsole.xml');
-            //this.load.json('moveFrames','./json/Paul/demoman.json');
+            this.load.json('moveFrames','./json/Paul/demoman.json');
 
-            this.load.json('moveFrames','./json/Lee/acidrain.json');
+            //this.load.json('moveFrames','./json/Lee/acidrain.json');
             //this.load.json('moveFrames','./json/Lee/misttrap.json');
         }
  
@@ -262,8 +262,6 @@ module Tappy {
             //if (this.results.nextUnclaimed < this.justFrameMove.JustFrames.length) this.results.recalcLast() //fix up ignored if not all are claimed //
 
             let firstClickX = this.startX - 1 + this.frameWidth / 2;
-            let successCheck: number [] = new Array(this.justFrameMove.JustFrames.length)
-            successCheck[0] = 1 /// Should really treat the first frame properly in the resultset...
             
             this.results.buttons.forEach(b => {
                 let y = 340 
@@ -271,97 +269,43 @@ module Tappy {
                 let x = firstClickX + this.speed * dt
                 let style = Object.create(this.smallText)
                 
-                let pushEarly = 0
-                let pushLate = 0
+                
+                //Draw stuff
 
-                if (b.claimedFrame) {
-                    //Calculate success.  Should move this into the Results object
+                this.resultsText.push(this.add.text(x+2,315,`${Phaser.Math.FloorTo(b.firstFrame,-2)}`,this.smallText));
 
-                    if (b.chanceEarly > 0 ) { 
-                        pushEarly = (b.chanceEarly < 1) ? (1-b.chanceEarly)*(1-b.chancePush): 0 
-                                    // early = fail push = fail, only success i not (early * not push)
-                                    // I don't need to check chanceEarly < 1 as it will not be claimed... leaving it in case I change the claim system.     
-                        successCheck[b.claimedFrame] = pushEarly
-                    }
-                    else if (b.chanceLate > 0) {
-                        // todo, can probably simply this into 1 assignment.
-                        if (b.chanceLate < 1) {
-                            let earlyFactor = (b.chanceFirst > 0) ? 1-b.chancePush: 1  //should reduce chances if push frames blow out of early.
-                            pushLate = (earlyFactor*(1-b.chanceLate))+(b.chanceLate*b.chancePush)
-                                    // not late = okay. late only okay if push
-                                    // 1-late*1(push chance deosn't matter *) + (late*push)
-                                    // *unless it is a true just frame which I havent dealt with.
-                        }
-                        else if (b.chanceLate - 1 < 1) {
-                                    // only success if push
-                                    pushLate = (1-( b.chanceLate -1))*b.chancePush
-                                    // range 0 to .9999
-                                    // if it is exactly 0 - then chance is = push chance 
-                                 
-                        }
 
-                        successCheck[b.claimedFrame] = pushLate 
-                    }
-                    else successCheck[b.claimedFrame] = (b.chanceFirst > 0) ? (1-b.chancePush)*b.chanceFirst + 1-b.chanceFirst: 1
-                                                                                //chance no push * chance first + chance 2nd * 1 as success if push or not.                                                                    
+                let colour :Phaser.Display.Color = new Phaser.Display.Color().setFromHSV(b.chanceOK*.3,1,1)
+                style.color = Phaser.Display.Color.RGBToString(colour.red,colour.green,colour.blue,colour.alpha,'#')
 
-                    //Draw stuff
+                let claim:string
+               
+                if (b.chanceEarly == 1 || b.claimedFrame == null){
+                    style.color = '#777777' // grey 
+                    y += 120
+                    claim = 'n/a'
+                }
+                else claim = b.claimedFrame.toString()
+                
 
-                    console.log(successCheck[b.claimedFrame])
-                    let color = Phaser.Display.Color.HSVToRGB(successCheck[b.claimedFrame]*.3,1,1) //use Phaser.Display.Color to do calc
-                    style.color = Phaser.Display.Color.RGBToString(color.r,color.g,color.b,color.a,'#')
-
-                    this.resultsText.push(this.add.text(x+2,315,
-                        `${Phaser.Math.FloorTo(b.firstFrame,-2)}`
-                    ,this.smallText));
-
-                    let c = b.claimedFrame.toString()
-
-                    if (b.chanceLate == 1){
-                        //style.color = '#ff0000' //red
-                    }
-                    else if (b.chanceEarly == 1){
-                        style.color = '#777777'
-                        y += 75
-                        c = 'n/a'
-                    }
-                    else if (b.chanceEarly == 0 && b.chanceLate == 0) {
-                        //style.color = '#00ff00' //green
-                    }
-                    else  {
-                        //style.color = '#ffff00' //yellow
-
-                    }
-                    
-                    
-                    //notes
-                    let clickStartLine = new Phaser.Geom.Line(x, 300, x, y+90);
-                    this.graphics.strokeLineShape(clickStartLine);
-                    this.resultsText.push(this.add.text(x+2,y,
-`Button: ${b.button}
-Early %: ${Phaser.Math.FloorTo(b.chanceEarly,-4)}
+                //notes
+                let clickStartLine = new Phaser.Geom.Line(x, 300, x, y+120);
+                this.graphics.strokeLineShape(clickStartLine);
+                this.resultsText.push(this.add.text(x+2,y,
+`Button:${b.button}
+Early %:${Phaser.Math.FloorTo(b.chanceEarly,-4)}
 Late %: ${Phaser.Math.FloorTo(b.chanceLate,-4)}
 Push %: ${Phaser.Math.FloorTo(b.chancePush,-4)}
-1st %: ${Phaser.Math.FloorTo(b.chanceFirst,-4)}
 PCount: ${this.results.pushCount}
-Success%: ${Phaser.Math.FloorTo(successCheck[b.claimedFrame]*100,-4)}
-JustF: ${c}`                        
-                        ,style))
-                }
-                else {//first and maybe last sometimes.
-                    /*style.color ='#666666'
-                    this.mouseButton.push(this.add.text(x+2, y+70, 
-`Button: ${b.button}
-n/a`
-,style)) */  // First and any after last...
-                }
+1st %:  ${Phaser.Math.FloorTo(b.chanceFirst,-4)}
+OK%:    ${Phaser.Math.FloorTo(b.chanceOK*100,-4)}
+JustF:  ${claim}`                        
+                ,style))
+                
+                
             });
-
-        //Calculate result
-
-
-        let successResult = Phaser.Math.FloorTo(successCheck.reduce(function(product,value){return product*value}) *100,-2)
         
+        let successResult = this.results.getResult() //final result
         this.running.setText(`${successResult}% success - Tap to try again`)
         this.running.setAlpha(1)
         }
@@ -386,17 +330,17 @@ n/a`
 
 
 // Should I do a proper class instead of this weird optional set.?
-    declare type buttonPush =
-    {
+    export interface buttonPush {
         button?: string
         time: number
         firstFrame?: number     
         
-        claimedFrame?: number //this
+        claimedFrame?: number  //this
         chanceEarly?: number  //this
         chanceFirst?: number
         chancePush?: number 
         chanceLate?: number   //this
+        chanceOK?: number
     }
     class  resultset {
         //1. capture the times that taps were made.
@@ -409,11 +353,13 @@ n/a`
         pushCount: number = 0;
         pushFrames: number = 0;
         public nextUnclaimed: number = 1;
+        chanceSuccess: number = 0;
 
         constructor(start:number, moves:jfInput[], button:string = "1") {
 
             this.startTime = start;
-            this.buttons.push({time: start, button: button})
+            this.buttons.push({time: start, button: button,firstFrame:0,claimedFrame:0,chanceEarly:0,chanceFirst:0,chanceLate:0,chancePush:0,chanceOK:1})
+
             this.moveFrames = moves;
         }
 
@@ -423,19 +369,16 @@ n/a`
             this.calcFrames(this.buttons[index-1])
         }
         
-        public recalcLast() {
-            
-            // find the last claim then go forwards.
-            
-            // TODO: but it doesn really work how I want... should show early then push the next one out as well.
-            // two situations: 1: I have hit the 3rd but early for 4th... this works now.
-            //                 2: I have missed both the 3rd and 4th - this doesn't because I find the 4th as a late.
-            //                    Ideally the 3rd and 4th would now show as early..
-            //                 3: What if I add a 3rd actual early, then 4 and 5 should match to 3 and 4. but they are early / late too.  Ugly. Maybe I should just get all the closest misses.
-            //                 4: what if I hit 1,2,3 but do a 4 and 5 on either side... I should just do them grey but show the numbers
-            // If I can tell the difference - I can fix it
-            // Dont worry about this... Next Calc the total chance ..
+        public getResult():number {
+            let chances: number[] = []
+            this.buttons.forEach(b => {
+                if (b.claimedFrame > 0 && b.chanceEarly < 1) chances.push(b.chanceOK)
+            });
 
+            return Phaser.Math.FloorTo(chances.reduce(function(product,value){return product*value}) *100,-2)
+
+        }
+        public recalcLast() {
             let lastClaim = 0 // what if I only click once?
             for (let i = 0; i < this.buttons.length; i++) {
                 if (this.buttons[i].claimedFrame) lastClaim = i
@@ -489,6 +432,43 @@ n/a`
                     }
                 }
             }//else we done...
+            
+            //moving out from draw function... step 1 - get it working / step 2 - move it up.
+            let pushEarly = 0
+            let pushLate = 0
+
+            if (c.claimedFrame) {
+                //Calculate success.  Should move this into the Results object
+
+                if (c.chanceEarly > 0 ) { 
+                    pushEarly = (c.chanceEarly < 1) ? (1-c.chanceEarly)*(1-c.chancePush): 0 
+                                // early = fail push = fail, only success i not (early * not push)
+                                // I don't need to check chanceEarly < 1 as it will not be claimed... leaving it in case I change the claim system.     
+                    c.chanceOK = pushEarly
+                }
+                else if (c.chanceLate > 0) {
+                    // todo, can probably simply this into 1 assignment.
+                    if (c.chanceLate < 1) {
+                        let earlyFactor = (c.chanceFirst > 0) ? 1-c.chancePush: 1  //should reduce chances if push frames blow out of early.
+                        pushLate = (earlyFactor*(1-c.chanceLate))+(c.chanceLate*c.chancePush)
+                                // not late = okay. late only okay if push
+                                // 1-late*1(push chance deosn't matter *) + (late*push)
+                                // *unless it is a true just frame which I havent dealt with.
+                    }
+                    else if (c.chanceLate - 1 < 1) {
+                                // only success if push
+                                pushLate = (1-( c.chanceLate -1))*c.chancePush
+                                // range 0 to .9999
+                                // if it is exactly 0 - then chance is = push chance 
+                                
+                    }
+
+                    c.chanceOK = pushLate 
+                }
+                else c.chanceOK = (c.chanceFirst > 0) ? (1-c.chancePush)*c.chanceFirst + 1-c.chanceFirst: 1
+                //chance no push * chance first + chance 2nd * 1 as success if push or not.                                                                    
+            }
+
         }
     }
 }
