@@ -9,12 +9,17 @@ module Tappy{
  
             let config = {
                 type: Phaser.WEBGL,
+                input: {
+                    //queue: true,
+                    gamepad: true
+                },
                 scale: {
                     mode: Phaser.Scale.FIT,
+                    autoCenter: Phaser.Scale.CENTER_BOTH,
                     width: 1200,
-                    height: 615
+                    height: 675
                 },                
-                scene: [TestScene],
+                scene: [FrameGame],
                 banner: true,
                 title: 'Tappy',
                 version: '1.0.0'
