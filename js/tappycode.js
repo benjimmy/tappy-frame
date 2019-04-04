@@ -1,36 +1,6 @@
-/// <reference path='./phaser.d.ts'/>
 var Tappy;
 (function (Tappy) {
-    class InitPhaser {
-        static initGame() {
-            let config = {
-                type: Phaser.WEBGL,
-                input: {
-                    //queue: true,
-                    gamepad: true
-                },
-                scale: {
-                    mode: Phaser.Scale.FIT,
-                    autoCenter: Phaser.Scale.CENTER_BOTH,
-                    width: 1200,
-                    height: 675
-                },
-                scene: [Tappy.FrameGame],
-                banner: true,
-                title: 'Tappy',
-                version: '1.0.0'
-            };
-            this.gameRef = new Phaser.Game(config);
-        }
-    }
-    Tappy.InitPhaser = InitPhaser;
-})(Tappy || (Tappy = {}));
-window.onload = () => {
-    Tappy.InitPhaser.initGame();
-};
-var Tappy;
-(function (Tappy) {
-    const oneFrame = 16.6666666666666666;
+    Tappy.oneFrame = 16.6666666666666666;
     class FrameGame extends Phaser.Scene {
         constructor() {
             super({ key: 'TestScene' });
@@ -66,7 +36,7 @@ var Tappy;
             this.gameWidth = this.frameWidth * this.lastFrameDisplayed; //multiply it back into clean gamewidth 
             // might be a practical minimum size for this. 3 frames probably... 
             // 3 frames times 60 = 180 + edges...
-            this.speed = this.gameWidth / this.lastFrameDisplayed / oneFrame; //speed still less accurate probably... only for realtime
+            this.speed = this.gameWidth / this.lastFrameDisplayed / Tappy.oneFrame; //speed still less accurate probably... only for realtime
             this.add.text(this.startX, 150, this.justFrameMove.MoveName, this.mediumText);
             this.add.text(this.startX, 170, this.justFrameMove.MoveNotation, this.mediumText);
             this.add.text(this.startX, 190, this.justFrameMove.Notes, this.mediumText);
@@ -138,7 +108,7 @@ var Tappy;
                 this.frame++;
                 var runtime = this.sys.game.loop.time - this.results.startTime;
                 if (!this.stateShowResults) {
-                    if (runtime > this.lastFrameDisplayed * oneFrame) {
+                    if (runtime > this.lastFrameDisplayed * Tappy.oneFrame) {
                         this.stateShowResults = true;
                     }
                     else {
@@ -147,7 +117,7 @@ var Tappy;
                         this.graphics.strokeLineShape(this.frameRuler); //I want to uses
                     }
                 }
-                if (runtime > (this.lastFrameDisplayed + 15) * oneFrame) {
+                if (runtime > (this.lastFrameDisplayed + 15) * Tappy.oneFrame) {
                     this.stateRunning = false;
                     this.drawResults();
                 }
@@ -183,7 +153,7 @@ var Tappy;
                 this.stateRunning = true;
                 this.stateShowResults = false;
                 this.resultsText.forEach(element => { element.destroy(); });
-                this.results = new resultset(this.sys.game.loop.time, this.justFrameMove.JustFrames);
+                this.results = new Tappy.resultset(this.sys.game.loop.time, this.justFrameMove.JustFrames);
                 this.running.setAlpha(0);
                 this.frameRuler.x2 = this.startX;
                 this.graphics.clear();
@@ -206,8 +176,7 @@ var Tappy;
                 let style = Object.create(this.smallText);
                 //Draw stuff
                 this.resultsText.push(this.add.text(x + 2, 315, `${Phaser.Math.FloorTo(b.firstFrame, -2)}`, this.smallText));
-                let colour = new Phaser.Display.Color().setFromHSV(b.chanceOK * .3, 1, 1);
-                style.color = Phaser.Display.Color.RGBToString(colour.red, colour.green, colour.blue, colour.alpha, '#');
+                style.color = getColorFromPercent(b.chanceOK);
                 let claim;
                 if (b.chanceEarly == 1 || b.claimedFrame == null) {
                     style.color = '#777777'; // grey 
@@ -230,10 +199,48 @@ JustF:  ${claim}`, style));
             });
             let successResult = this.results.getResult(); //final result
             this.running.setText(`${successResult}% success - Tap to try again`);
+            this.running.setColor(getColorFromPercent(successResult / 100));
             this.running.setAlpha(1);
         }
     }
     Tappy.FrameGame = FrameGame;
+    function getColorFromPercent(chance) {
+        let colour = new Phaser.Display.Color().setFromHSV(chance * .3, 1, 1);
+        return Phaser.Display.Color.RGBToString(colour.red, colour.green, colour.blue, colour.alpha, '#');
+    }
+})(Tappy || (Tappy = {}));
+/// <reference path='./phaser.d.ts'/>
+var Tappy;
+(function (Tappy) {
+    class InitPhaser {
+        static initGame() {
+            let config = {
+                type: Phaser.WEBGL,
+                input: {
+                    //queue: true,
+                    gamepad: true
+                },
+                scale: {
+                    mode: Phaser.Scale.FIT,
+                    autoCenter: Phaser.Scale.CENTER_BOTH,
+                    width: 1200,
+                    height: 675
+                },
+                scene: [Tappy.FrameGame],
+                banner: true,
+                title: 'Tappy',
+                version: '1.0.0'
+            };
+            this.gameRef = new Phaser.Game(config);
+        }
+    }
+    Tappy.InitPhaser = InitPhaser;
+})(Tappy || (Tappy = {}));
+window.onload = () => {
+    Tappy.InitPhaser.initGame();
+};
+var Tappy;
+(function (Tappy) {
     class resultset {
         constructor(start, moves, button = "1") {
             this.buttons = [];
@@ -251,10 +258,13 @@ JustF:  ${claim}`, style));
             this.calcFrames(this.buttons[index - 1]);
         }
         getResult() {
-            let chances = [];
+            let chances = new Array(this.moveFrames.length);
+            for (let i = 0; i < chances.length; i++) {
+                chances[i] = 0;
+            }
             this.buttons.forEach(b => {
-                if (b.claimedFrame > 0 && b.chanceEarly < 1)
-                    chances.push(b.chanceOK);
+                if (b.claimedFrame !== null)
+                    chances[b.claimedFrame] = b.chanceOK;
             });
             return Phaser.Math.FloorTo(chances.reduce(function (product, value) { return product * value; }) * 100, -2);
         }
@@ -272,9 +282,8 @@ JustF:  ${claim}`, style));
         }
         calcFrames(c, redo = true) {
             let timediff = c.time - this.startTime; //eg 19.17/16
-            let timeFrame = timediff / oneFrame; // part through 1st frame. =  1.15
+            let timeFrame = timediff / Tappy.oneFrame; // part through 1st frame. =  1.15
             let jf;
-            //  c.percentage = 1-timePerc;
             c.firstFrame = timeFrame;
             if (this.nextUnclaimed < this.moveFrames.length) {
                 jf = this.moveFrames[this.nextUnclaimed];
@@ -308,7 +317,7 @@ JustF:  ${claim}`, style));
                     }
                 }
             } //else we done...
-            //moving out from draw function... step 1 - get it working / step 2 - move it up.
+            //moving out from draw function... TODO - move it into the frame calcs maybe?
             let pushEarly = 0;
             let pushLate = 0;
             if (c.claimedFrame) {
@@ -342,5 +351,6 @@ JustF:  ${claim}`, style));
             }
         }
     }
+    Tappy.resultset = resultset;
 })(Tappy || (Tappy = {}));
 //# sourceMappingURL=tappycode.js.map
