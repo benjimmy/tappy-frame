@@ -21,8 +21,9 @@ module Tappy {
         public startTime: number;
         buttons:buttonPush[] = []
         moveFrames:jfInput[] = []
-        pushCount: number = 0;
-        pushFrames: number = 0;
+        pushCount: number = 0; //at least this much push
+        pushFrames: number = 0; // chance of 1 more push
+        latePush: number = 0; // maybe a missed push.
         public nextUnclaimed: number = 1;
         chanceSuccess: number = 0;
 
@@ -73,6 +74,9 @@ module Tappy {
      
             let jf:jfInput;
             
+            //I think this is pretty good now.
+            //If I do a rewrite for the display.. split okay by frame. i.e 1st frame ok = 10% 2nd frame 0% ok. then multiply by chance of hitting it.
+            c.chanceOK = 0
             c.firstFrame = timeFrame
             if( this.nextUnclaimed < this.moveFrames.length) {
                 jf = this.moveFrames[this.nextUnclaimed]
@@ -81,20 +85,43 @@ module Tappy {
                 if(c.firstFrame > jf.earlyFrame + this.pushCount -1  ){ //at least partially in on early side
                     c.chanceFirst = (c.firstFrame < jf.earlyFrame + this.pushCount + 1)? jf.earlyFrame+this.pushCount+1-c.firstFrame:0 //need this incase we are pushing out of first frame
                     c.chancePush = this.pushFrames - this.pushCount // don't do it the first time
-                    if (c.firstFrame < jf.latestFrame + this.pushCount + 1 ) { //at least partially in on late side
-                        
-                        if (c.firstFrame < jf.earlyFrame + this.pushCount) c.chanceEarly = jf.earlyFrame + this.pushCount - c.firstFrame // maybe early
-                            // keeping percent justFrame seperate calculate it in the results. (earlyc*(1-pushc)+pushc) = true early chance ***WRONG!
+                    if (c.firstFrame < jf.latestFrame + this.pushCount + 2 ) { //had to change this from +1 to +2... need to retest all.
 
-                        if (c.firstFrame > jf.latestFrame + this.pushCount) c.chanceLate = c.firstFrame - (jf.latestFrame + this.pushCount) // mayber late
-                            // (2 *earlyC * pushc) - earlyc -pushc -1 = true late chance
+                        c.chanceOK = (c.chanceFirst > 0) ? (1-this.latePush)*((1-c.chancePush)*c.chanceFirst + 1-c.chanceFirst): 1 * (1-this.latePush)//not early or late chance. // TODO2: LATE PUSH HERE? YES, on both sides.
+
+                        if (c.firstFrame < jf.earlyFrame + this.pushCount) {
+                            c.chanceEarly = jf.earlyFrame + this.pushCount - c.firstFrame // maybe early
+                            c.chanceOK = (c.chanceEarly < 1) ? (1-c.chanceEarly)*(1-c.chancePush): 0 // TODO2: LATE PUSH HERE? Too tired right now.
+                        }
+                            
+
+                        if (c.firstFrame > jf.latestFrame + this.pushCount) {
+                            c.chanceLate = c.firstFrame - (jf.latestFrame + this.pushCount) // maybe late
+                            if (c.chanceLate < 1){
+                                let earlyFactor = (c.chanceFirst > 0) ? 1-c.chancePush: 1  //should reduce chances if push frames blow out of early.
+                                c.chanceOK = ((earlyFactor*(1-c.chanceLate))+(c.chanceLate*c.chancePush))*(1-this.latePush) // TODO2: LATE PUSH HERE: YES?
+                            }
+                            else if (c.chanceLate - 1 < 1) {  
+                                // only success if push
+                                c.chanceOK = (1-( c.chanceLate -1))*c.chancePush // TODO2: LatePush - I don't think here. because c.chancePush will be 0
+                            }
+
+                         
+                        }
                                         
                         if (c.firstFrame > jf.justFrame && jf.latestFrame > jf.justFrame) { //I presume push should always be zero and this is called once...but... can change later if need be.
                             this.pushFrames = c.firstFrame - jf.justFrame
                             this.pushCount = Math.floor(this.pushFrames) //only guarenteed frames.
-                            if (this.pushFrames > jf.latestFrame - jf.justFrame) this.pushFrames = this.pushCount // probably dont need this if I read late first but...?
+                            if (this.pushFrames > jf.latestFrame - jf.justFrame) {
+                                this.latePush = this.pushFrames -this.pushCount
+                                this.pushFrames = this.pushCount
+                                c.chanceOK = (1-c.chanceLate)
+                            }
                         }
-                    }else c.chanceLate = c.firstFrame - (jf.latestFrame + this.pushCount)// late and clamed = 
+                    }else {
+                        c.chanceLate = c.firstFrame - (jf.latestFrame + this.pushCount)// late and clamed = 
+
+                    }
                     c.claimedFrame = this.nextUnclaimed++; // was on time or late so claimed.
                     
                 }else {
@@ -105,43 +132,6 @@ module Tappy {
                     }
                 }
             }//else we done...
-            
-            //moving out from draw function... TODO - move it into the frame calcs maybe?
-            let pushEarly = 0
-            let pushLate = 0
-
-            if (c.claimedFrame) {
-                //Calculate success.  Should move this into the Results object
-
-                if (c.chanceEarly > 0 ) { 
-                    pushEarly = (c.chanceEarly < 1) ? (1-c.chanceEarly)*(1-c.chancePush): 0 
-                                // early = fail push = fail, only success i not (early * not push)
-                                // I don't need to check chanceEarly < 1 as it will not be claimed... leaving it in case I change the claim system.     
-                    c.chanceOK = pushEarly
-                }
-                else if (c.chanceLate > 0) {
-                    // todo, can probably simply this into 1 assignment.
-                    if (c.chanceLate < 1) {
-                        let earlyFactor = (c.chanceFirst > 0) ? 1-c.chancePush: 1  //should reduce chances if push frames blow out of early.
-                        pushLate = (earlyFactor*(1-c.chanceLate))+(c.chanceLate*c.chancePush)
-                                // not late = okay. late only okay if push
-                                // 1-late*1(push chance deosn't matter *) + (late*push)
-                                // *unless it is a true just frame which I havent dealt with.
-                    }
-                    else if (c.chanceLate - 1 < 1) {
-                                // only success if push
-                                pushLate = (1-( c.chanceLate -1))*c.chancePush
-                                // range 0 to .9999
-                                // if it is exactly 0 - then chance is = push chance 
-                                
-                    }
-
-                    c.chanceOK = pushLate 
-                }
-                else c.chanceOK = (c.chanceFirst > 0) ? (1-c.chancePush)*c.chanceFirst + 1-c.chanceFirst: 1
-                //chance no push * chance first + chance 2nd * 1 as success if push or not.                                                                    
-            }
-
         }
     }
     

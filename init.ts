@@ -19,7 +19,8 @@ module Tappy{
                     width: 1200,
                     height: 675
                 },                
-                scene: [FrameGame],
+                //scene: [FrameMenu,FrameGame],
+                scene: [FrameGame,FrameMenu],
                 banner: true,
                 title: 'Tappy',
                 version: '1.0.0'
