@@ -134,20 +134,5 @@ module Tappy {
             }//else we done...
         }
     }
-    
-    //define Just Frame objects loaded from JSON.
-    export interface justFrames {
-        MoveName: string;
-        MoveNotation: string;
-        Notes: string;
-        JustFrames?: (jfInput)[] | null;
-    }
-    export interface jfInput {
-        id: number;
-        move: number;
-        earlyFrame: number;
-        justFrame: number;
-        latestFrame: number;
-        optional: boolean;
-    }
+
 }

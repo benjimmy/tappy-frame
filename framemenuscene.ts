@@ -1,32 +1,42 @@
 module Tappy {
 
-  
+
     export class FrameMenu extends Phaser.Scene {
 
-        
+        data: any
+
         constructor() {
-            super({key:'MenuScene'});
+            super({ key: 'MenuScene' });
         }
 
-        preload() {
-            this.load.json('Paul','./json/Paul/demoman.json');
-            this.load.json('Lee','./json/Lee/acidrain.json');
+        preload() {  // Change design.  1. file per char.
+
+            this.load.json('jfData', './movesjson/justframedata.json');
 
         }
         create() {
             this.input.mouse.disableContextMenu();
 
-            
-            this.add.text(50,150,"Paul",mediumText).setInteractive()
-            this.add.text(50,350,"Lee",mediumText).setInteractive()
-            
-            this.input.once('gameobjectdown',this.clicked,this)
+            this.data = this.cache.json.get('jfData')
+            let y = 150
+
+            this.data.forEach(char => {
+                this.add.text(50, y, char.Character, mediumText)
+                char.JustFrameMoves.forEach(move => {
+                    this.add.text(200, y, move.MoveName, mediumText).setInteractive().setData("move", move)
+                    y += 50
+                });
+
+            });
+
+
+            this.input.once('gameobjectdown', this.clicked, this)
 
         }
 
-        clicked(pointer:Phaser.Input.Pointer,gameobject){
-            if (gameobject.text == 'Paul' ) this.scene.start('FrameGame',this.cache.json.get('Paul'));
-            else if(gameobject.text == 'Lee' ) this.scene.start('FrameGame',this.cache.json.get('Lee'));
+        clicked(pointer: Phaser.Input.Pointer, gameobject) {
+            this.scene.start('FrameGame', gameobject.getData("move"));
+
         }
 
 

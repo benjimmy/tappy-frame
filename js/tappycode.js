@@ -1,7 +1,7 @@
 var Tappy;
 (function (Tappy) {
     Tappy.oneFrame = 16.6666666666666666;
-    const gameWidth = 1120;
+    const gameWidth = 1100;
     Tappy.mediumText = { fontFamily: 'Arial', fontSize: 18, color: '#ffffff' };
     class FrameGame extends Phaser.Scene {
         constructor() {
@@ -26,9 +26,7 @@ var Tappy;
         }
         preload() {
             this.load.bitmapFont('luc', ['./Fonts/lucidaconsole_0.png', './Fonts/lucidaconsole_1.png'], './Fonts/lucidaconsole.xml');
-            this.load.json('defaultMove', './json/Paul/demoman.json');
-            //this.load.json('defaultMove','./json/Lee/acidrain.json');
-            //this.load.json('defaultMove','./json/Lee/misttrap.json');
+            this.load.json('defaultMove', './movesjson/default.json');
         }
         create() {
             this.input.mouse.disableContextMenu(); // allow right-click
@@ -135,7 +133,7 @@ var Tappy;
         pressed(pad, button) {
             //needs input.queue in phaser 3.16 but timestamp still doesn't update so
             //input queue also stops the mid frame timestamp. 
-            if (button.index < 4) {
+            if (this.justFrameMove.DirectionsOK || button.index < 4) {
                 this.tapUpdate(this.sys.game.loop.time, button.index);
             }
         }
@@ -170,7 +168,7 @@ var Tappy;
                 let clickCircle = new Phaser.Geom.Circle(firstClickX, 265, this.frameWidth / 2);
                 this.graphics.strokeCircleShape(clickCircle);
                 this.graphics.fillCircleShape(clickCircle);
-                this.graphics.strokeLineShape(new Phaser.Geom.Line(firstClickX, 250, firstClickX, 350)); //should be halfway through frame... Frame size 6?
+                this.graphics.strokeLineShape(new Phaser.Geom.Line(firstClickX, 250, firstClickX, 350)); //should be halfway through frame...
             }
         }
         drawResults() {
@@ -223,20 +221,23 @@ var Tappy;
             super({ key: 'MenuScene' });
         }
         preload() {
-            this.load.json('Paul', './json/Paul/demoman.json');
-            this.load.json('Lee', './json/Lee/acidrain.json');
+            this.load.json('jfData', './movesjson/justframedata.json');
         }
         create() {
             this.input.mouse.disableContextMenu();
-            this.add.text(50, 150, "Paul", Tappy.mediumText).setInteractive();
-            this.add.text(50, 350, "Lee", Tappy.mediumText).setInteractive();
+            this.data = this.cache.json.get('jfData');
+            let y = 150;
+            this.data.forEach(char => {
+                this.add.text(50, y, char.Character, Tappy.mediumText);
+                char.JustFrameMoves.forEach(move => {
+                    this.add.text(200, y, move.MoveName, Tappy.mediumText).setInteractive().setData("move", move);
+                    y += 50;
+                });
+            });
             this.input.once('gameobjectdown', this.clicked, this);
         }
         clicked(pointer, gameobject) {
-            if (gameobject.text == 'Paul')
-                this.scene.start('FrameGame', this.cache.json.get('Paul'));
-            else if (gameobject.text == 'Lee')
-                this.scene.start('FrameGame', this.cache.json.get('Lee'));
+            this.scene.start('FrameGame', gameobject.getData("move"));
         }
     }
     Tappy.FrameMenu = FrameMenu;
@@ -249,7 +250,7 @@ var Tappy;
             let config = {
                 type: Phaser.WEBGL,
                 input: {
-                    //queue: true,
+                    queue: true,
                     gamepad: true
                 },
                 scale: {
