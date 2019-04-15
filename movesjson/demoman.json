@@ -1,0 +1,29 @@
+{
+    "MoveName": "Demolition Man",
+    "MoveNotation": "d+4:2:1+2",
+    "Notes": "Only Showing Bluespark frames",
+    "DefaultStrict" : true,
+    "JustFrames": [
+      {
+        "id": 0,
+        "move": "d+4",
+        "earlyFrame": 0,
+        "justFrame": 0,
+        "latestFrame": 0
+      },
+      {
+        "id": 1,
+        "move": "2",
+        "earlyFrame": 1,
+        "justFrame": 16,
+        "latestFrame": 19
+      },
+      {
+        "id": 2,
+        "move": "1+2",
+        "earlyFrame": 37,
+        "justFrame": 38,
+        "latestFrame": 38
+      }
+    ]
+}
