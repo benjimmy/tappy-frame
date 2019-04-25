@@ -59,7 +59,7 @@ module Tappy {
         }
 
         create() {
-            this.input.mouse.disableContextMenu();  // allow right-click
+            //this.input.mouse.disableContextMenu();  // allow right-click
 
             if (this.justFrameMove == null) {                                           //If not called from menu
                 this.justFrameMove = <justFrames>this.cache.json.get('defaultMove'); //Default to whatever in preload
@@ -100,7 +100,9 @@ module Tappy {
                 this.graphicsGuide.strokeRectShape(frame);
                 this.graphicsGuide.fillRectShape(frame);
             });
-
+            
+            //debug, show gamesize
+            this.graphicsGuide.strokeRect(0,0,1200,600)
 
             let localPushCount = 0
             this.justFrameMove.JustFrames.forEach(jf => {
@@ -152,6 +154,7 @@ module Tappy {
 
             //set up input handdlers: // TODO add keyboard
             this.input.on('pointerdown', this.clicked, this);
+            this.input.on('pointerdownoutside',this.clicked, this)
             this.input.gamepad.on('down', this.pressed, this);
 
             console.log(`width: ${cleanGameWidth} sX: ${this.startX}`)

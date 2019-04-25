@@ -9,15 +9,17 @@ module Tappy{
  
             let config = {
                 type: Phaser.WEBGL,
+                disableContextMenu: true,
                 input: {
                     queue: true,
                     gamepad: true
                 },
                 scale: {
                     mode: Phaser.Scale.FIT,
-                    autoCenter: Phaser.Scale.CENTER_BOTH,
+                    
+                    autoCenter: Phaser.Scale.CENTER_HORIZONTALLY,
                     width: 1200,
-                    height: 675
+                    height: 600
                 },                
                 //scene: [FrameMenu,FrameGame],
                 scene: [FrameGame,FrameMenu],

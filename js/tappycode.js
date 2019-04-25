@@ -29,7 +29,7 @@ var Tappy;
             this.load.json('defaultMove', './movesjson/default.json');
         }
         create() {
-            this.input.mouse.disableContextMenu(); // allow right-click
+            //this.input.mouse.disableContextMenu();  // allow right-click
             if (this.justFrameMove == null) { //If not called from menu
                 this.justFrameMove = this.cache.json.get('defaultMove'); //Default to whatever in preload
                 console.log(`Loaded default: ${this.justFrameMove.MoveName}`);
@@ -61,6 +61,8 @@ var Tappy;
                 this.graphicsGuide.strokeRectShape(frame);
                 this.graphicsGuide.fillRectShape(frame);
             });
+            //debug, show gamesize
+            this.graphicsGuide.strokeRect(0, 0, 1200, 600);
             let localPushCount = 0;
             this.justFrameMove.JustFrames.forEach(jf => {
                 if (!jf.optional) { // TODO: I think get rid optionals.
@@ -100,6 +102,7 @@ var Tappy;
             this.running = this.add.text(600, 50, 'Tap or Click when ready', this.largeText).setOrigin();
             //set up input handdlers: // TODO add keyboard
             this.input.on('pointerdown', this.clicked, this);
+            this.input.on('pointerdownoutside', this.clicked, this);
             this.input.gamepad.on('down', this.pressed, this);
             console.log(`width: ${cleanGameWidth} sX: ${this.startX}`);
             this.add.text(cleanGameWidth + this.startX, 40, 'MENU', Tappy.mediumText).setInteractive().on('pointerdown', (p, x, y, ed) => {
@@ -224,7 +227,7 @@ var Tappy;
             this.load.json('jfData', './movesjson/justframedata.json');
         }
         create() {
-            this.input.mouse.disableContextMenu();
+            //this.input.mouse.disableContextMenu();
             this.data = this.cache.json.get('jfData');
             let y = 150;
             this.data.forEach(char => {
@@ -242,6 +245,17 @@ var Tappy;
     }
     Tappy.FrameMenu = FrameMenu;
 })(Tappy || (Tappy = {}));
+var Tappy;
+(function (Tappy) {
+    class FrameBoxes extends Phaser.Scene {
+        constructor() {
+            super({ key: "SizeScene" });
+        }
+        create() {
+        }
+    }
+    Tappy.FrameBoxes = FrameBoxes;
+})(Tappy || (Tappy = {}));
 /// <reference path='./phaser.d.ts'/>
 var Tappy;
 (function (Tappy) {
@@ -249,15 +263,16 @@ var Tappy;
         static initGame() {
             let config = {
                 type: Phaser.WEBGL,
+                disableContextMenu: true,
                 input: {
                     queue: true,
                     gamepad: true
                 },
                 scale: {
                     mode: Phaser.Scale.FIT,
-                    autoCenter: Phaser.Scale.CENTER_BOTH,
+                    autoCenter: Phaser.Scale.CENTER_HORIZONTALLY,
                     width: 1200,
-                    height: 675
+                    height: 600
                 },
                 //scene: [FrameMenu,FrameGame],
                 scene: [Tappy.FrameGame, Tappy.FrameMenu],

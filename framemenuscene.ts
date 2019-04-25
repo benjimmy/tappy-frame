@@ -15,7 +15,7 @@ module Tappy {
 
         }
         create() {
-            this.input.mouse.disableContextMenu();
+            //this.input.mouse.disableContextMenu();
 
             this.data = this.cache.json.get('jfData')
             let y = 150
