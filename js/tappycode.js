@@ -1,4 +1,4 @@
-var Tappy;
+I var Tappy;
 (function (Tappy) {
     Tappy.oneFrame = 16.6666666666666666;
     const gameWidth = 1100;
@@ -265,7 +265,7 @@ var Tappy;
                 type: Phaser.WEBGL,
                 disableContextMenu: true,
                 input: {
-                    queue: true,
+                    queue: false,
                     gamepad: true
                 },
                 scale: {
