@@ -1,4 +1,5 @@
 /// <reference path='./phaser.d.ts'/>
+
 module Tappy{
     export class InitPhaser {
  
@@ -8,13 +9,20 @@ module Tappy{
  
             let config = {
                 type: Phaser.WEBGL,
+                disableContextMenu: true,
+                input: {
+                    queue: true,
+                    gamepad: true
+                },
                 scale: {
                     mode: Phaser.Scale.FIT,
-                    autoCenter: Phaser.Scale.CENTER_BOTH,
-                    width: 800,
+                    
+                    autoCenter: Phaser.Scale.CENTER_HORIZONTALLY,
+                    width: 1200,
                     height: 600
                 },                
-                scene: [TestScene],
+                //scene: [FrameMenu,FrameGame],
+                scene: [FrameGame,FrameMenu],
                 banner: true,
                 title: 'Tappy',
                 version: '1.0.0'

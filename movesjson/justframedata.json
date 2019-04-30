@@ -1,0 +1,146 @@
+[
+  {
+    "Character": "Bryan",
+    "JustFrameMoves": [
+      {
+        "MoveName": "Taunt JU",
+        "MoveNotation": "1+3+4:f:b+2",
+        "Notes": "Or do something else",
+        "DefaultStrict": true,
+        "DirectionsOK": true,
+        "JustFrames": [
+          {
+            "id": 0,
+            "move": "1+3+4",
+            "earlyFrame": 0,
+            "justFrame": 0,
+            "latestFrame": 0
+          },
+          {
+            "id": 1,
+            "move": "f",
+            "earlyFrame": 28,
+            "justFrame": 28,
+            "latestFrame": 28
+          },
+          {
+            "id": 2,
+            "move": "b+2",
+            "earlyFrame": 30,
+            "justFrame": 30,
+            "latestFrame": 30
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "Character": "Lee",
+    "JustFrameMoves": [
+      {
+        "MoveName": "Acid Rain",
+        "MoveNotation": "1:3:3:3",
+        "Notes": "Advice: Try and hit the first 3 from frame 10 to 14 so the timing for the next two 3's is consistent.",
+        "JustFrames": [
+          {
+            "id": 0,
+            "move": 1,
+            "earlyFrame": 0,
+            "justFrame": 0,
+            "latestFrame": 0,
+            "optional": false
+          },
+          {
+            "id": 1,
+            "move": 3,
+            "earlyFrame": 1,
+            "justFrame": 10,
+            "latestFrame": 14,
+            "optional": false
+          },
+          {
+            "id": 2,
+            "move": 3,
+            "earlyFrame": 24,
+            "justFrame": 26,
+            "latestFrame": 26,
+            "optional": false
+          },
+          {
+            "id": 3,
+            "move": 3,
+            "earlyFrame": 34,
+            "justFrame": 35,
+            "latestFrame": 35,
+            "optional": false
+          }
+        ]
+      },
+      {
+        "MoveName": "Mist Trap",
+        "MoveNotation": "3:3[3]:4",
+        "Notes": "Advice: Wa da da dah. Optional extra 3 helps with rythm. Try and hit at 0, 10, 20, 31",
+        "JustFrames": [
+          {
+            "id": 0,
+            "move": 3,
+            "earlyFrame": 0,
+            "justFrame": 0,
+            "latestFrame": 0,
+            "optional": false
+          },
+          {
+            "id": 1,
+            "move": 3,
+            "earlyFrame": 1,
+            "justFrame": 13,
+            "latestFrame": 13,
+            "optional": false
+          },
+          {
+            "id": 2,
+            "move": 4,
+            "earlyFrame": 31,
+            "justFrame": 31,
+            "latestFrame": 31,
+            "optional": false
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "Character": "Paul",
+    "JustFrameMoves": [
+      {
+        "MoveName": "Demolition Man",
+        "MoveNotation": "d+4:2:1+2",
+        "Notes": "Only Showing Bluespark frames",
+        "DefaultStrict": true,
+        "JustFrames": [
+          {
+            "id": 0,
+            "move": "d+4",
+            "earlyFrame": 0,
+            "justFrame": 0,
+            "latestFrame": 0
+          },
+          {
+            "id": 1,
+            "move": "2",
+            "earlyFrame": 1,
+            "justFrame": 16,
+            "latestFrame": 19
+          },
+          {
+            "id": 2,
+            "move": "1+2",
+            "earlyFrame": 37,
+            "justFrame": 38,
+            "latestFrame": 38
+          }
+        ]
+      }
+    ]
+  }
+]
