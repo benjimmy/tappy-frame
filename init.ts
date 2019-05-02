@@ -11,7 +11,7 @@ module Tappy{
                 type: Phaser.WEBGL,
                 disableContextMenu: true,
                 input: {
-                    queue: true,
+                    queue: false,
                     gamepad: true
                 },
                 scale: {
@@ -21,7 +21,6 @@ module Tappy{
                     width: 1200,
                     height: 600
                 },                
-                //scene: [FrameMenu,FrameGame],
                 scene: [FrameGame,FrameMenu],
                 banner: true,
                 title: 'Tappy',

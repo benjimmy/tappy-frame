@@ -27,6 +27,7 @@ module Tappy {
         stateRunning: boolean = false;
         stateShowResults: boolean = false;
         stateStartTime: number;
+        strict: boolean = false;
 
         //create objects
         frameTick: Phaser.Geom.Line;
@@ -49,6 +50,7 @@ module Tappy {
             }
             else {
                 this.justFrameMove = <justFrames>data
+                this.strict = this.justFrameMove.DefaultStrict
                 console.log(`Loaded from menu: ${this.justFrameMove.MoveName}`)
             }
         }
@@ -78,6 +80,7 @@ module Tappy {
             // 3 frames times 60 = 180 + edges...
 
             this.speed = cleanGameWidth / this.lastFrameDisplayed / oneFrame;        //speed still less accurate probably... only for realtime
+
 
             this.add.text(this.startX, 150, this.justFrameMove.MoveName, mediumText)
             this.add.text(this.startX, 170, this.justFrameMove.MoveNotation, mediumText)
@@ -158,11 +161,21 @@ module Tappy {
             this.input.gamepad.on('down', this.pressed, this);
 
             console.log(`width: ${cleanGameWidth} sX: ${this.startX}`)
-            this.add.text(cleanGameWidth + this.startX, 40, 'MENU', mediumText).setInteractive().on('pointerdown', (p, x, y, ed: Phaser.Input.EventData) => {
+
+            let strictText =  (this.strict)?"STRICT MODE ON":"STRICT MODE OFF"
+            this.add.text(this.startX, 100, strictText, mediumText).setInteractive().on('pointerdown', function (p, x, y, ed: Phaser.Input.EventData) {
+                ed.stopPropagation()
+                this.scene.strict = !this.scene.strict // this shouldn't work??
+                this.text = (this.scene.strict)?"STRICT MODE ON":"STRICT MODE OFF"
+
+            }
+                
+)
+            this.add.text(cleanGameWidth + this.startX, 40, 'MENU', mediumText).setInteractive().on('pointerdown', function(p, x, y, ed: Phaser.Input.EventData) {
                 ed.stopPropagation()
                 //this.graphics.clear() //maybe not.
                 //this.graphicsGuide.clear() //maybe not.
-                this.scene.start('MenuScene')
+                this.scene.scene.start('MenuScene')
             })
         }
 
@@ -214,6 +227,7 @@ module Tappy {
         }
 
         tapUpdate(time: number, button: number) {
+            console.log("strict: " + this.strict)
             let firstClickX = this.startX - 1 + this.frameWidth / 2;
             //stateShowResults is a buffer so late clicks don't cause it to start again.
 
@@ -243,7 +257,7 @@ module Tappy {
                 this.stateShowResults = false;
                 this.resultsText.forEach(element => { element.destroy() });
 
-                this.results = new resultset(this.sys.game.loop.time, this.justFrameMove.JustFrames)
+                this.results = new resultset(this.sys.game.loop.time, this.justFrameMove.JustFrames,button.toString(),this.strict )
 
                 this.running.setAlpha(0)
                 this.graphics.clear()
@@ -259,6 +273,7 @@ module Tappy {
 
         drawResults() {
             //if (this.results.nextUnclaimed < this.justFrameMove.JustFrames.length) this.results.recalcLast() //fix up ignored if not all are claimed //
+            let successResult = this.results.getResult() //final result
 
             let firstClickX = this.startX - 1 + this.frameWidth / 2;
 
@@ -278,9 +293,9 @@ module Tappy {
 
                 let claim: string
 
-                if (b.chanceEarly == 1 || b.claimedFrame == null) {
+                if (b.chanceOK == null || b.claimedFrame == null) {
                     style.color = '#777777' // grey 
-                    y += 120
+                    //y += 120
                     claim = 'n/a'
                 }
                 else claim = b.claimedFrame.toString()
@@ -291,11 +306,8 @@ module Tappy {
                 this.graphics.strokeLineShape(clickStartLine);
                 this.resultsText.push(this.add.text(x + 2, y,
                     `Button:${b.button}
-Early %:${Phaser.Math.FloorTo(b.chanceEarly, -4)}
-Late %: ${Phaser.Math.FloorTo(b.chanceLate, -4)}
-Push %: ${Phaser.Math.FloorTo(b.chancePush, -4)}
+PFrames:${Phaser.Math.FloorTo(this.results.pushFrames, -4)}
 PCount: ${this.results.pushCount}
-1st %:  ${Phaser.Math.FloorTo(b.chanceFirst, -4)}
 OK%:    ${Phaser.Math.FloorTo(b.chanceOK * 100, -2)}
 JustF:  ${claim}
 
@@ -312,8 +324,6 @@ JF2%:   ${Phaser.Math.FloorTo(b.jf2Chance * 100,-4)}`
             });
 
 
-
-            let successResult = this.results.getResult() //final result
             this.running.setText(`${successResult}% success - Tap to try again`)
             this.running.setColor(getColorFromPercent(successResult / 100))
             this.running.setAlpha(1)

@@ -13,6 +13,7 @@ var Tappy;
             //state
             this.stateRunning = false;
             this.stateShowResults = false;
+            this.strict = false;
             this.resultsText = [];
         }
         init(data) {
@@ -21,6 +22,7 @@ var Tappy;
             }
             else {
                 this.justFrameMove = data;
+                this.strict = this.justFrameMove.DefaultStrict;
                 console.log(`Loaded from menu: ${this.justFrameMove.MoveName}`);
             }
         }
@@ -105,11 +107,17 @@ var Tappy;
             this.input.on('pointerdownoutside', this.clicked, this);
             this.input.gamepad.on('down', this.pressed, this);
             console.log(`width: ${cleanGameWidth} sX: ${this.startX}`);
-            this.add.text(cleanGameWidth + this.startX, 40, 'MENU', Tappy.mediumText).setInteractive().on('pointerdown', (p, x, y, ed) => {
+            let strictText = (this.strict) ? "STRICT MODE ON" : "STRICT MODE OFF";
+            this.add.text(this.startX, 100, strictText, Tappy.mediumText).setInteractive().on('pointerdown', function (p, x, y, ed) {
+                ed.stopPropagation();
+                this.scene.strict = !this.scene.strict; // this shouldn't work??
+                this.text = (this.scene.strict) ? "STRICT MODE ON" : "STRICT MODE OFF";
+            });
+            this.add.text(cleanGameWidth + this.startX, 40, 'MENU', Tappy.mediumText).setInteractive().on('pointerdown', function (p, x, y, ed) {
                 ed.stopPropagation();
                 //this.graphics.clear() //maybe not.
                 //this.graphicsGuide.clear() //maybe not.
-                this.scene.start('MenuScene');
+                this.scene.scene.start('MenuScene');
             });
         }
         drawBounds(x1, x2, y1, y2, colour) {
@@ -144,6 +152,7 @@ var Tappy;
             this.tapUpdate(pointer.time, pointer.buttons);
         }
         tapUpdate(time, button) {
+            console.log("strict: " + this.strict);
             let firstClickX = this.startX - 1 + this.frameWidth / 2;
             //stateShowResults is a buffer so late clicks don't cause it to start again.
             if (this.stateRunning && !this.stateShowResults) {
@@ -163,7 +172,7 @@ var Tappy;
                 this.stateRunning = true;
                 this.stateShowResults = false;
                 this.resultsText.forEach(element => { element.destroy(); });
-                this.results = new Tappy.resultset(this.sys.game.loop.time, this.justFrameMove.JustFrames);
+                this.results = new Tappy.resultset(this.sys.game.loop.time, this.justFrameMove.JustFrames, button.toString(), this.strict);
                 this.running.setAlpha(0);
                 this.graphics.clear();
                 this.graphics.lineStyle(1, 0xffffff);
@@ -176,6 +185,7 @@ var Tappy;
         }
         drawResults() {
             //if (this.results.nextUnclaimed < this.justFrameMove.JustFrames.length) this.results.recalcLast() //fix up ignored if not all are claimed //
+            let successResult = this.results.getResult(); //final result
             let firstClickX = this.startX - 1 + this.frameWidth / 2;
             this.results.buttons.forEach(b => {
                 let y = 340;
@@ -186,9 +196,9 @@ var Tappy;
                 this.resultsText.push(this.add.text(x + 2, 315, `${Phaser.Math.FloorTo(b.firstFrame, -2)}`, this.smallText));
                 style.color = getColorFromPercent(b.chanceOK);
                 let claim;
-                if (b.chanceEarly == 1 || b.claimedFrame == null) {
+                if (b.chanceOK == null || b.claimedFrame == null) {
                     style.color = '#777777'; // grey 
-                    y += 120;
+                    //y += 120
                     claim = 'n/a';
                 }
                 else
@@ -197,11 +207,8 @@ var Tappy;
                 let clickStartLine = new Phaser.Geom.Line(x, 300, x, y + 120);
                 this.graphics.strokeLineShape(clickStartLine);
                 this.resultsText.push(this.add.text(x + 2, y, `Button:${b.button}
-Early %:${Phaser.Math.FloorTo(b.chanceEarly, -4)}
-Late %: ${Phaser.Math.FloorTo(b.chanceLate, -4)}
-Push %: ${Phaser.Math.FloorTo(b.chancePush, -4)}
+PFrames:${Phaser.Math.FloorTo(this.results.pushFrames, -4)}
 PCount: ${this.results.pushCount}
-1st %:  ${Phaser.Math.FloorTo(b.chanceFirst, -4)}
 OK%:    ${Phaser.Math.FloorTo(b.chanceOK * 100, -2)}
 JustF:  ${claim}
 
@@ -213,7 +220,6 @@ hit2:   ${Phaser.Math.FloorTo(b.hit2Frame, -4)}
 hit2%:  ${Phaser.Math.FloorTo(b.hit2Chance * 100, -4)}
 JF2%:   ${Phaser.Math.FloorTo(b.jf2Chance * 100, -4)}`, style));
             });
-            let successResult = this.results.getResult(); //final result
             this.running.setText(`${successResult}% success - Tap to try again`);
             this.running.setColor(getColorFromPercent(successResult / 100));
             this.running.setAlpha(1);
@@ -262,7 +268,7 @@ var Tappy;
                 type: Phaser.WEBGL,
                 disableContextMenu: true,
                 input: {
-                    queue: true,
+                    queue: false,
                     gamepad: true
                 },
                 scale: {
@@ -271,7 +277,6 @@ var Tappy;
                     width: 1200,
                     height: 600
                 },
-                //scene: [FrameMenu,FrameGame],
                 scene: [Tappy.FrameGame, Tappy.FrameMenu],
                 banner: true,
                 title: 'Tappy',
@@ -288,23 +293,25 @@ window.onload = () => {
 var Tappy;
 (function (Tappy) {
     class resultset {
-        constructor(start, moves, button = "1") {
+        constructor(start, moves, button = "1", strict = false) {
             this.buttons = [];
             this.moveFrames = [];
             this.pushCount = 0; //at least this much push
             this.pushFrames = 0; // chance of 1 more push
-            this.latePush = 0; // maybe a missed push.
             this.nextUnclaimed = 1;
             this.chanceSuccess = 0;
             this.startTime = start;
-            this.buttons.push({ time: start, button: button, firstFrame: 0, claimedFrame: 0, chanceEarly: 0, chanceFirst: 0, chanceLate: 0, chancePush: 0, chanceOK: 1 });
+            this.buttons.push({ time: start, button: button, firstFrame: 0, claimedFrame: 0, chanceOK: 1 });
             this.moveFrames = moves;
+            this.strict = strict;
         }
         add(time, button = "1") {
             let index = this.buttons.push({ time: time, button: button });
             this.calcFrames(this.buttons[index - 1]);
         }
         getResult() {
+            if (this.nextUnclaimed < this.moveFrames.length)
+                this.recalcLast();
             let chances = new Array(this.moveFrames.length);
             for (let i = 0; i < chances.length; i++) {
                 chances[i] = 0;
@@ -316,35 +323,30 @@ var Tappy;
             return Phaser.Math.FloorTo(chances.reduce(function (product, value) { return product * value; }) * 100, -2);
         }
         recalcLast() {
-            let lastClaim = 0; // what if I only click once?
-            for (let i = 0; i < this.buttons.length; i++) {
-                if (this.buttons[i].claimedFrame)
-                    lastClaim = i;
-            }
-            lastClaim++;
-            while (lastClaim < this.buttons.length) { // this is dumb... It will only ever calc the last one anyway - unless they were both before the 3rd.
-                this.calcFrames(this.buttons[lastClaim], true);
-                lastClaim++;
-            }
+            //just to stop an early press making chanceOK NaN
+            let lastButton = this.buttons.pop();
+            if (lastButton.chanceOK == null)
+                lastButton.chanceOK = 0;
+            this.buttons.push(lastButton);
         }
-        calcFrames2(c, redo = true) {
+        calcFrames(c) {
             // designing a new one.
             // 1. create an array of the adjusted Just Frame groups including chances on the ends.
             // 2. match the 1st and 2nd frame chances to the chances of the jfs above
             // 3. record the four chances so they can be displayed.
-            // todo
             // 4. claim the frame.
             // 5. calculate the push count / late / frames
-            // 6. get rid of the things I don't need in buttonPush /resultset or calc them too.              | |
+            // 6. get rid of the things I don't need in buttonPush /resultset or calc them too.            
+            // TODO
             // 7. not here but display the two chances above/below the frame input.      something like   10%| |90%  hit
             // for later maybe                                                                           100%| |30%  justFrame
             //                                                                                               37%
             // 8. externalise the just frames adjJF into a class that I can update here then reuse for redrawing the main display.
             let jf;
-            let firstFrame = (c.time - this.startTime) / Tappy.oneFrame; // c.firstFrame  
-            c.hit1Frame = Math.floor(firstFrame);
+            c.firstFrame = (c.time - this.startTime) / Tappy.oneFrame; // c.firstFrame  
+            c.hit1Frame = Math.floor(c.firstFrame);
             c.hit2Frame = c.hit1Frame + 1;
-            c.hit2Chance = (firstFrame - c.hit1Frame);
+            c.hit2Chance = (c.firstFrame - c.hit1Frame);
             c.hit1Chance = 1 - c.hit2Chance;
             //c.jf1Chance
             //c.jf2Chance
@@ -359,11 +361,11 @@ var Tappy;
                 for (let i = adjEarlyFrame + 1; i <= adjLateFrame; i++) {
                     adjJF.push([i, 1]);
                 }
-                //if (adjLateFrame>adjEarlyFrame) adjJF.push([adjLateFrame,1-this.latePush]) // Decided I don't want this - May chance my mind.
+                //if (adjLateFrame>adjEarlyFrame) adjJF.push([adjLateFrame,1-this.latePush]) // Decided I don't want to double up on the late push chance - May chance my mind.
                 adjJF.push([adjLateFrame + 1, this.pushFrames - this.pushCount]);
                 adjJF.push([adjLateFrame + 2, 0]);
                 if (c.hit2Frame >= adjEarlyFrame) {
-                    //c.claimedFrame = this.nextUnclaimed++ //late or ok  // todo, once I switch from calcframes1
+                    c.claimedFrame = this.nextUnclaimed++; //late or ok  // todo, once I switch from calcframes1
                     console.log("hit:" + c.hit1Frame);
                     if (c.hit1Frame <= adjLateFrame + 1) {
                         adjJF.forEach(ajf => {
@@ -374,71 +376,33 @@ var Tappy;
                                 c.jf2Chance = ajf[1];
                         });
                     }
-                    let chanceOK = ((c.hit1Chance * c.jf1Chance) + (c.hit2Chance * c.jf2Chance));
-                    console.log(chanceOK);
+                    else
+                        c.jf1Chance = c.jf2Chance = 0; // too late... 
+                    c.chanceOK = ((c.hit1Chance * c.jf1Chance) + (c.hit2Chance * c.jf2Chance));
                 }
                 else { //early
                     // todo when i stop calcframes1
-                    // c.chanceEarly=1 // maybe take this out for simplicity.
-                    // c.claimedFrame = this.nextUnclaimed; //claimed next frame but can still be claimed??? - Come back to STRICT
+                    //c.chanceEarly=1 // maybe take this out for simplicity.
+                    c.jf1Chance = 0;
+                    c.jf2Chance = 0;
+                    c.claimedFrame = this.nextUnclaimed; //claimed next frame but can still be claimed??? - Come back to STRICT
+                    if (this.strict) { // strict mode = all buttons must be accounted for.
+                        this.nextUnclaimed++;
+                        c.chanceOK = 0;
+                    }
+                }
+                // Calculate the pushframes... Happens once only I think...
+                // IF so, don't need to use adjusted.
+                if (c.firstFrame > jf.justFrame && jf.latestFrame > jf.justFrame) {
+                    this.pushFrames = c.firstFrame - jf.justFrame;
+                    this.pushCount = Math.floor(this.pushFrames);
+                    if (this.pushFrames > jf.latestFrame - jf.justFrame) {
+                        this.pushFrames = this.pushCount = jf.latestFrame - jf.justFrame; // max it out, or make it zero.. doesn't really matter
+                    }
                 }
             }
-        }
-        calcFrames(c, redo = true) {
-            this.calcFrames2(c);
-            let timediff = c.time - this.startTime; //eg 19.17/16
-            let timeFrame = timediff / Tappy.oneFrame; // part through 1st frame. =  1.15
-            let jf;
-            //I think this is pretty good now.
-            //If I do a rewrite for the display.. split okay by frame. i.e 1st frame ok = 10% 2nd frame 0% ok. then multiply by chance of hitting it.
-            c.chanceOK = 0;
-            c.firstFrame = timeFrame;
-            if (this.nextUnclaimed < this.moveFrames.length) {
-                jf = this.moveFrames[this.nextUnclaimed];
-                c.chanceEarly = c.chanceLate = 0;
-                if (c.firstFrame > jf.earlyFrame + this.pushCount - 1) { //at least partially in on early side
-                    c.chanceFirst = (c.firstFrame < jf.earlyFrame + this.pushCount + 1) ? jf.earlyFrame + this.pushCount + 1 - c.firstFrame : 0; //need this incase we are pushing out of first frame
-                    c.chancePush = this.pushFrames - this.pushCount; // don't do it the first time
-                    if (c.firstFrame < jf.latestFrame + this.pushCount + 2) { //had to change this from +1 to +2... need to retest all.
-                        c.chanceOK = (c.chanceFirst > 0) ? (1 - this.latePush) * ((1 - c.chancePush) * c.chanceFirst + 1 - c.chanceFirst) : 1 * (1 - this.latePush); //not early or late chance. // TODO2: LATE PUSH HERE? YES, on both sides.
-                        if (c.firstFrame < jf.earlyFrame + this.pushCount) {
-                            c.chanceEarly = jf.earlyFrame + this.pushCount - c.firstFrame; // maybe early
-                            c.chanceOK = (c.chanceEarly < 1) ? (1 - c.chanceEarly) * (1 - c.chancePush) : 0; // TODO2: LATE PUSH HERE? Too tired right now.
-                        }
-                        if (c.firstFrame > jf.latestFrame + this.pushCount) {
-                            c.chanceLate = c.firstFrame - (jf.latestFrame + this.pushCount); // maybe late
-                            if (c.chanceLate < 1) {
-                                let earlyFactor = (c.chanceFirst > 0) ? 1 - c.chancePush : 1; //should reduce chances if push frames blow out of early.
-                                c.chanceOK = ((earlyFactor * (1 - c.chanceLate)) + (c.chanceLate * c.chancePush)) * (1 - this.latePush); // TODO2: LATE PUSH HERE: YES?
-                            }
-                            else if (c.chanceLate - 1 < 1) {
-                                // only success if push
-                                c.chanceOK = (1 - (c.chanceLate - 1)) * c.chancePush; // TODO2: LatePush - I don't think here. because c.chancePush will be 0
-                            }
-                        }
-                        if (c.firstFrame > jf.justFrame && jf.latestFrame > jf.justFrame) { //I presume push should always be zero and this is called once...but... can change later if need be.
-                            this.pushFrames = c.firstFrame - jf.justFrame;
-                            this.pushCount = Math.floor(this.pushFrames); //only guarenteed frames.
-                            if (this.pushFrames > jf.latestFrame - jf.justFrame) {
-                                this.latePush = this.pushFrames - this.pushCount;
-                                this.pushFrames = this.pushCount;
-                                c.chanceOK = (1 - c.chanceLate);
-                            }
-                        }
-                    }
-                    else {
-                        c.chanceLate = c.firstFrame - (jf.latestFrame + this.pushCount); // late and clamed = 
-                    }
-                    c.claimedFrame = this.nextUnclaimed++; // was on time or late so claimed.
-                }
-                else {
-                    c.chanceEarly = 1; //trying to fix situations where not enough presses. or not enough matches.  
-                    if (redo) { // maybe I could always do this but just not increment...????
-                        c.claimedFrame = this.nextUnclaimed;
-                        c.chancePush = this.pushFrames - this.pushCount;
-                    }
-                }
-            } //else we done...
+            else
+                this.buttons.pop(); // don't need extras
         }
     }
     Tappy.resultset = resultset;
