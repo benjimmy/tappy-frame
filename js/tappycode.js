@@ -1,4 +1,4 @@
-I var Tappy;
+var Tappy;
 (function (Tappy) {
     Tappy.oneFrame = 16.6666666666666666;
     const gameWidth = 1100;
