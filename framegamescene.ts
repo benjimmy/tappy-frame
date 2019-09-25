@@ -257,11 +257,7 @@ module Tappy {
                 this.stateShowResults = false;
                 this.resultsText.forEach(element => { element.destroy() });
 
-<<<<<<< HEAD
-                this.results = new resultset(this.sys.game.loop.time, this.justFrameMove.JustFrames)
-=======
                 this.results = new resultset(this.sys.game.loop.time, this.justFrameMove.JustFrames,button.toString(),this.strict )
->>>>>>> master
 
                 this.running.setAlpha(0)
                 this.graphics.clear()
