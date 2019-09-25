@@ -305,22 +305,20 @@ module Tappy {
                 let clickStartLine = new Phaser.Geom.Line(x, 300, x, y + 120);
                 this.graphics.strokeLineShape(clickStartLine);
                 this.resultsText.push(this.add.text(x + 2, y,
-                    `Button:${b.button}
+`${Phaser.Math.FloorTo(b.hit2Frame,-2)}
+${Phaser.Math.FloorTo(b.hit2Chance * 100,-2)}% Hit
+${Phaser.Math.FloorTo(b.jf2Chance * 100,-2)}% Just
+
+Button:${b.button}
 PFrames:${Phaser.Math.FloorTo(this.results.pushFrames, -4)}
 PCount: ${this.results.pushCount}
 OK%:    ${Phaser.Math.FloorTo(b.chanceOK * 100, -2)}
-JustF:  ${claim}
-
-hit1:   ${Phaser.Math.FloorTo(b.hit1Frame,-4)}
-hit1%:  ${Phaser.Math.FloorTo(b.hit1Chance * 100,-4)}
-JF1%:   ${Phaser.Math.FloorTo(b.jf1Chance * 100,-4)}
-
-hit2:   ${Phaser.Math.FloorTo(b.hit2Frame,-4)}
-hit2%:  ${Phaser.Math.FloorTo(b.hit2Chance * 100,-4)}
-JF2%:   ${Phaser.Math.FloorTo(b.jf2Chance * 100,-4)}`
-                    , style))
-
-
+JustF:  ${claim}`, style))
+                
+                this.resultsText.push(this.add.text(x-2,y,
+`${Phaser.Math.FloorTo(b.hit1Frame,-2)}
+Hit ${Phaser.Math.FloorTo(b.hit1Chance * 100,-2)}%
+Just ${Phaser.Math.FloorTo(b.jf1Chance * 100,-2)}%`,style).setOrigin(1,0).setAlign('right'))
             });
 
 
