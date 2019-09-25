@@ -15,8 +15,6 @@ module Tappy {
 
         }
         create() {
-            //this.input.mouse.disableContextMenu();
-
             this.data = this.cache.json.get('jfData')
             let y = 150
 
@@ -28,7 +26,6 @@ module Tappy {
                 });
 
             });
-
 
             this.input.once('gameobjectdown', this.clicked, this)
 
