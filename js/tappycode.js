@@ -10,6 +10,11 @@ var Tappy;
             this.smallText = { fontFamily: 'Arial', fontSize: 12, color: '#ffffff' };
             this.largeText = { fontFamily: 'Arial', fontSize: 28, color: '#ffffff' };
             this.startX = 40;
+            this.moveTextY = 150;
+            this.frameGuideY = 230;
+            this.frameBoxY = 250;
+            this.frameBoxHeight = 30;
+            this.ySpace = 5;
             //state
             this.stateRunning = false;
             this.stateShowResults = false;
@@ -31,7 +36,6 @@ var Tappy;
             this.load.json('defaultMove', './movesjson/default.json');
         }
         create() {
-            //this.input.mouse.disableContextMenu();  // allow right-click
             if (this.justFrameMove == null) { //If not called from menu
                 this.justFrameMove = this.cache.json.get('defaultMove'); //Default to whatever in preload
                 console.log(`Loaded default: ${this.justFrameMove.MoveName}`);
@@ -40,64 +44,83 @@ var Tappy;
             this.justFrameMove.JustFrames.forEach(f => {
                 this.pushFrames += f.latestFrame - f.justFrame;
             });
-            this.lastFrameDisplayed = this.justFrameMove.JustFrames[this.justFrameMove.JustFrames.length - 1].latestFrame + this.pushFrames + 5;
+            var jfLastFrame = this.justFrameMove.JustFrames[this.justFrameMove.JustFrames.length - 1];
+            this.lastFrameDisplayed = jfLastFrame.latestFrame + this.pushFrames + 2;
+            if (jfLastFrame.mehLate != null)
+                this.lastFrameDisplayed += (jfLastFrame.mehLate > jfLastFrame.latestFrame) ? jfLastFrame.mehLate - jfLastFrame.latestFrame : 0;
             this.frameWidth = Math.floor(gameWidth / this.lastFrameDisplayed); //round it into clean frame size
             let cleanGameWidth = this.frameWidth * this.lastFrameDisplayed; //multiply it back into clean gamewidth 
             // might be a practical minimum size for this. 3 frames probably... 
             // 3 frames times 60 = 180 + edges...
             this.speed = cleanGameWidth / this.lastFrameDisplayed / Tappy.oneFrame; //speed still less accurate probably... only for realtime
-            this.add.text(this.startX, 150, this.justFrameMove.MoveName, Tappy.mediumText);
-            this.add.text(this.startX, 170, this.justFrameMove.MoveNotation, Tappy.mediumText);
-            this.add.text(this.startX, 190, this.justFrameMove.Notes, Tappy.mediumText);
+            this.add.text(this.startX, this.moveTextY, this.justFrameMove.MoveName, Tappy.mediumText);
+            this.add.text(this.startX, this.moveTextY + 20, this.justFrameMove.MoveNotation, Tappy.mediumText);
+            this.add.text(this.startX, this.moveTextY + 40, this.justFrameMove.Notes, Tappy.mediumText);
             /* Possible features.
             1. to make the effect of push frames clearer.
             */
             this.graphicsGuide = this.add.graphics({ lineStyle: { width: 1, color: 0xff0000 }, fillStyle: { color: 0x660000, alpha: 1 } });
             // make the whole set red.
+            this.graphicsGuide.strokeRect(0, 0, 1200, 600); //debug, show gamesize
             this.frameBoxes = [];
-            for (let i = 0; i <= this.lastFrameDisplayed; i++) {
-                this.add.text(this.startX + i * this.frameWidth + this.frameWidth / 2, 290, i.toString(), this.smallText).setOrigin(0.5);
-                this.frameBoxes.push(new Phaser.Geom.Rectangle(this.startX + i * this.frameWidth, 250, this.frameWidth - 2, 30));
+            for (let i = 0; i <= this.pushFrames; i++) {
+                this.frameBoxes[i] = [];
             }
-            this.frameBoxes.forEach(frame => {
-                this.graphicsGuide.strokeRectShape(frame);
-                this.graphicsGuide.fillRectShape(frame);
-            });
-            //debug, show gamesize
-            this.graphicsGuide.strokeRect(0, 0, 1200, 600);
-            let localPushCount = 0;
-            this.justFrameMove.JustFrames.forEach(jf => {
-                if (!jf.optional) { // TODO: I think get rid optionals.
-                    //draw success boundaries - including blue push frames.
-                    this.drawBounds(this.frameBoxes[jf.earlyFrame].left, this.frameBoxes[jf.justFrame].right, 230, 280, 0xffffff);
-                    for (let i = 1; i <= localPushCount; i++) {
-                        this.drawBounds(this.frameBoxes[jf.earlyFrame + i].left, this.frameBoxes[jf.justFrame + i].right, 232, 250, 0xaa00aa);
-                    }
-                    this.add.text(this.startX + jf.justFrame * this.frameWidth + this.frameWidth / 2, 240, jf.move.toString(), this.smallText).setOrigin(0.5);
-                    //early or JF= green
-                    this.graphicsGuide.lineStyle(1, 0x00ff00);
-                    this.graphicsGuide.fillStyle(0x007700);
-                    for (let i = jf.earlyFrame; i <= jf.justFrame; i++) {
-                        this.graphicsGuide.fillRectShape(this.frameBoxes[i]);
-                        this.graphicsGuide.strokeRectShape(this.frameBoxes[i]);
-                    }
-                    //late = blue
-                    this.graphicsGuide.lineStyle(1, 0x0000ff);
-                    this.graphicsGuide.fillStyle(0x000077);
-                    for (let i = jf.justFrame + 1; i <= jf.latestFrame; i++) {
-                        this.graphicsGuide.fillRectShape(this.frameBoxes[i]);
-                        this.graphicsGuide.strokeRectShape(this.frameBoxes[i]);
-                        this.graphicsGuide.strokeLineShape(new Phaser.Geom.Line(this.frameBoxes[i].right, 230, this.frameBoxes[i].right, 250));
-                        localPushCount++; // Again assuming only one push frames... 
-                    }
-                    this.graphicsGuide.strokeLineShape(new Phaser.Geom.Line(this.frameBoxes[jf.justFrame].right, 230, this.frameBoxes[jf.latestFrame].right, 230));
-                    /*//JF = Green //
-                    this.graphicsGuide.lineStyle(1,0x00ff00)
-                    this.graphicsGuide.fillStyle(0x007700)
-                    this.graphicsGuide.fillRectShape(this.frameBoxes[jf.justFrame])
-                    this.graphicsGuide.strokeRectShape(this.frameBoxes[jf.justFrame])
-                    */
+            this.yPush = 0;
+            for (let p = 0; p <= this.pushFrames; p++) {
+                this.graphicsGuide.lineStyle(1, 0xff0000);
+                this.graphicsGuide.fillStyle(0x660000);
+                let h = this.frameBoxHeight;
+                if (p > 0) {
+                    h = this.frameBoxHeight / 3;
                 }
+                for (let i = 0; i <= this.lastFrameDisplayed; i++) {
+                    this.frameBoxes[p].push(new Phaser.Geom.Rectangle(this.startX + i * this.frameWidth, this.frameBoxY + this.yPush, this.frameWidth - 2, h));
+                }
+                this.frameBoxes[p].forEach(frame => {
+                    this.graphicsGuide.strokeRectShape(frame);
+                    this.graphicsGuide.fillRectShape(frame);
+                });
+                let localPushCount = 0;
+                this.justFrameMove.JustFrames.forEach(jf => {
+                    if (!jf.optional) { // TODO: I think get rid optionals - nah, maybe come back to it.
+                        //draw meh frames
+                        if (jf.mehEarly != null) {
+                            //this.drawBounds(this.frameBoxes[jf.mehEarly].left, this.frameBoxes[jf.mehLate].right, 230,280,0xFFA500)
+                            this.graphicsGuide.lineStyle(1, 0xFFA500);
+                            this.graphicsGuide.fillStyle(0xFFA500);
+                            for (let i = jf.mehEarly; i <= jf.mehLate; i++) {
+                                this.graphicsGuide.fillRectShape(this.frameBoxes[p][i + localPushCount]);
+                                //this.graphicsGuide.strokeRectShape(this.frameBoxes[i])
+                            }
+                        }
+                        //early or JF= green
+                        this.graphicsGuide.lineStyle(1, 0x00ff00);
+                        this.graphicsGuide.fillStyle(0x007700);
+                        for (let i = jf.earlyFrame; i <= jf.justFrame; i++) {
+                            this.graphicsGuide.fillRectShape(this.frameBoxes[p][i + localPushCount]);
+                            this.graphicsGuide.strokeRectShape(this.frameBoxes[p][i + localPushCount]);
+                        }
+                        //late = blue
+                        this.graphicsGuide.lineStyle(1, 0x0000ff);
+                        this.graphicsGuide.fillStyle(0x000077);
+                        for (let i = jf.justFrame + 1; i <= jf.latestFrame - this.pushFrames + p; i++) {
+                            this.graphicsGuide.fillRectShape(this.frameBoxes[p][i]);
+                            this.graphicsGuide.strokeRectShape(this.frameBoxes[p][i]);
+                            this.graphicsGuide.strokeLineShape(new Phaser.Geom.Line(this.frameBoxes[p][i].right, this.frameGuideY, this.frameBoxes[p][i].right, this.frameBoxY));
+                            localPushCount++; // Again assuming only one push frames... 
+                        }
+                        this.graphicsGuide.strokeLineShape(new Phaser.Geom.Line(this.frameBoxes[p][jf.justFrame].right, this.frameGuideY, this.frameBoxes[p][jf.latestFrame].right, this.frameGuideY));
+                    }
+                });
+                this.yPush += h + this.ySpace;
+            }
+            for (let i = 0; i <= this.lastFrameDisplayed; i++) {
+                this.add.text(this.startX + i * this.frameWidth + this.frameWidth / 2, this.frameBoxY + this.ySpace + this.yPush, i.toString(), this.smallText).setOrigin(0.5);
+            }
+            this.justFrameMove.JustFrames.forEach(jf => {
+                this.drawBounds(this.frameBoxes[0][jf.earlyFrame].left, this.frameBoxes[0][jf.justFrame].right, 230, 280, 0xffffff);
+                this.add.text(this.startX + jf.justFrame * this.frameWidth + this.frameWidth / 2, this.frameGuideY + 10, jf.move.toString(), this.smallText).setOrigin(0.5);
             });
             this.graphics = this.add.graphics({ lineStyle: { width: 1, color: 0xff0000 } }); //now just for the circles.
             this.scenefps = this.add.bitmapText(cleanGameWidth + this.startX, 32, 'luc', '', 16).setOrigin(1);
@@ -142,45 +165,47 @@ var Tappy;
             }
         }
         pressed(pad, button) {
-            //needs input.queue in phaser 3.16 but timestamp still doesn't update so
-            //input queue also stops the mid frame timestamp. 
+            //LOOKS LIKE THIS IS BEING READ ONCE A FRAME... NEED MORE.
             if (this.justFrameMove.DirectionsOK || button.index < 4) {
                 this.tapUpdate(this.sys.game.loop.time, button.index);
             }
         }
         clicked(pointer) {
-            this.tapUpdate(pointer.time, pointer.buttons);
+            this.tapUpdate(pointer.time, pointer.buttons); //one day make sure pointer.time is the same as sys.game.loop.time... OR a better time hasn't been added to the others.
         }
         tapUpdate(time, button) {
-            console.log("strict: " + this.strict);
             let firstClickX = this.startX - 1 + this.frameWidth / 2;
-            //stateShowResults is a buffer so late clicks don't cause it to start again.
-            if (this.stateRunning && !this.stateShowResults) {
+            if (this.stateRunning && !this.stateShowResults) { //stateShowResults is a buffer so late clicks don't cause it to start again.
                 this.results.add(time, button.toString());
                 let dt = time - this.results.startTime;
                 let x = firstClickX + this.speed * dt;
+                let y = this.frameBoxY + this.frameBoxHeight / 2;
+                if (this.results.pushCount > 0) {
+                    y += this.frameBoxHeight / 3;
+                    for (let i = 0; i < this.results.pushCount; i++) {
+                        y += this.frameBoxHeight / 3 + this.ySpace;
+                    }
+                }
                 this.graphics.lineStyle(1, 0xffffff);
                 this.graphics.fillStyle(0xffffff, 0.5);
-                let clickCircle = new Phaser.Geom.Circle(x, 265, this.frameWidth / 2);
+                let clickCircle = new Phaser.Geom.Circle(x, y, this.frameWidth / 2);
                 this.graphics.strokeCircleShape(clickCircle);
                 this.graphics.fillCircleShape(clickCircle);
-                let clickStartLine = new Phaser.Geom.Line(x, 250, x, 300);
-                this.graphics.strokeLineShape(clickStartLine);
             }
             if (!this.stateRunning) {
                 this.results = null;
                 this.stateRunning = true;
                 this.stateShowResults = false;
                 this.resultsText.forEach(element => { element.destroy(); });
-                this.results = new Tappy.resultset(this.sys.game.loop.time, this.justFrameMove.JustFrames, button.toString(), this.strict);
+                this.results = new Tappy.resultset(this.sys.game.loop.time, this.justFrameMove.JustFrames, button.toString(), this.strict, this.pushFrames);
                 this.running.setAlpha(0);
                 this.graphics.clear();
-                this.graphics.lineStyle(1, 0xffffff);
-                this.graphics.fillStyle(0xffffff, 0.5);
-                let clickCircle = new Phaser.Geom.Circle(firstClickX, 265, this.frameWidth / 2);
-                this.graphics.strokeCircleShape(clickCircle);
-                this.graphics.fillCircleShape(clickCircle);
-                this.graphics.strokeLineShape(new Phaser.Geom.Line(firstClickX, 250, firstClickX, 350)); //should be halfway through frame...
+                //this.graphics.lineStyle(1, 0xffffff);
+                //this.graphics.fillStyle(0xffffff, 0.5)
+                //let clickCircle = new Phaser.Geom.Circle(firstClickX, 265, this.frameWidth / 2)
+                //this.graphics.strokeCircleShape(clickCircle)
+                //this.graphics.fillCircleShape(clickCircle)
+                //this.graphics.strokeLineShape(new Phaser.Geom.Line(firstClickX, 250, firstClickX, 350)) //should be halfway through frame...
             }
         }
         drawResults() {
@@ -188,12 +213,12 @@ var Tappy;
             let successResult = this.results.getResult(); //final result
             let firstClickX = this.startX - 1 + this.frameWidth / 2;
             this.results.buttons.forEach(b => {
-                let y = 340;
+                let y = this.frameBoxY + this.frameBoxHeight + this.ySpace + this.yPush;
                 let dt = b.time - this.results.startTime;
                 let x = firstClickX + this.speed * dt;
                 let style = Object.create(this.smallText);
                 //Draw stuff
-                this.resultsText.push(this.add.text(x + 2, 315, `${Phaser.Math.FloorTo(b.firstFrame, -2)}`, this.smallText));
+                this.resultsText.push(this.add.text(x + 2, this.frameGuideY - 20, `${Phaser.Math.FloorTo(b.firstFrame, -2)}`, this.smallText));
                 style.color = getColorFromPercent(b.chanceOK);
                 let claim;
                 if (b.chanceOK == null || b.claimedFrame == null) {
@@ -207,7 +232,6 @@ var Tappy;
                 let clickStartLine = new Phaser.Geom.Line(x, 300, x, y + 120);
                 this.graphics.strokeLineShape(clickStartLine);
                 this.resultsText.push(this.add.text(x + 2, y, `${Phaser.Math.FloorTo(b.hit2Frame, -2)}
-${Phaser.Math.FloorTo(b.hit2Chance * 100, -2)}% Hit
 ${Phaser.Math.FloorTo(b.jf2Chance * 100, -2)}% Just
 
 Button:${b.button}
@@ -216,7 +240,6 @@ PCount: ${this.results.pushCount}
 OK%:    ${Phaser.Math.FloorTo(b.chanceOK * 100, -2)}
 JustF:  ${claim}`, style));
                 this.resultsText.push(this.add.text(x - 2, y, `${Phaser.Math.FloorTo(b.hit1Frame, -2)}
-Hit ${Phaser.Math.FloorTo(b.hit1Chance * 100, -2)}%
 Just ${Phaser.Math.FloorTo(b.jf1Chance * 100, -2)}%`, style).setOrigin(1, 0).setAlign('right'));
             });
             this.running.setText(`${successResult}% success - Tap to try again`);
@@ -291,17 +314,84 @@ window.onload = () => {
 var Tappy;
 (function (Tappy) {
     class resultset {
-        constructor(start, moves, button = "1", strict = false) {
+        constructor(start, moves, button = "1", strict = false, pushFrames) {
             this.buttons = [];
             this.moveFrames = [];
             this.pushCount = 0; //at least this much push
-            this.pushFrames = 0; // chance of 1 more push
+            this.pushFrames = 0; // chance of 1 more push - THis is not chance... It is exact in relation to the next button/
+            this.pushMax = 0;
             this.nextUnclaimed = 1;
             this.chanceSuccess = 0;
+            this.pushMax = pushFrames;
             this.startTime = start;
             this.buttons.push({ time: start, button: button, firstFrame: 0, claimedFrame: 0, chanceOK: 1 });
             this.moveFrames = moves;
             this.strict = strict;
+            this.buildSourceFrames();
+        }
+        buildSourceFrames() {
+            //for each source move frame: get the just frames, and break them out into individual frames.
+            //build the main array then concat the meh frames if applicable.
+            //Maybe I should do this in the maingamescene instead so I can use it for the graphics too.
+            this.moveFrames.forEach(sf => {
+                let justFrames = new Map();
+                //early meh frames
+                if (sf.mehEarly != null) {
+                    let earlyMeh = true;
+                    for (let i = sf.mehEarly; i < sf.earlyFrame; i++) {
+                        justFrames.set(i, { earlyMeh: earlyMeh, meh: true, adjEarly: 0, adjLate: 0, push: false }); // just going to assume no push on meh frames.
+                        earlyMeh = false;
+                    }
+                }
+                //just frames including pushing frames
+                let firstJF = true;
+                for (let i = sf.earlyFrame; i <= sf.latestFrame; i++) {
+                    let push = (i > sf.justFrame);
+                    justFrames.set(i, { meh: false, adjEarly: 0, adjLate: 0, push: push, firstJF: firstJF });
+                    firstJF = false;
+                }
+                //late meh frames
+                if (sf.mehLate != null) {
+                    for (let i = sf.latestFrame + 1; i <= sf.mehLate; i++) {
+                        //first one needs a flag for part push ***
+                        let firstMeh = (i == sf.latestFrame + 1);
+                        justFrames.set(i, { meh: true, partPush: firstMeh, adjEarly: 0, adjLate: 0, push: false }); // just going to assume no push on meh frames.
+                    }
+                }
+                sf.individualFrames = justFrames;
+            });
+        }
+        pushSourceFrames(pushAmount, frameWithPush) {
+            this.pushFrames = pushAmount;
+            this.pushCount = Math.floor(pushAmount);
+            let adjAmount = pushAmount - this.pushCount;
+            let pushedFrames = new Map();
+            //move the numbers of each of the push sets 
+            for (let i = frameWithPush + 1; i < this.moveFrames.length; i++) {
+                let iFrames = this.moveFrames[i].individualFrames;
+                let it = iFrames.entries();
+                let frameNo;
+                for (let i = 0; i < iFrames.size; i++) {
+                    let value = it.next().value;
+                    frameNo = value[0] + this.pushCount;
+                    let frameInfo = value[1];
+                    if (frameInfo.earlyMeh || frameInfo.firstJF) {
+                        frameInfo.adjEarly = adjAmount;
+                    }
+                    if (frameInfo.partPush) {
+                        frameInfo.adjLate = (pushAmount > this.pushMax) ? 0 : adjAmount;
+                    }
+                    pushedFrames.set(frameNo, frameInfo);
+                    //todo bit worried about if the push count is the max... and over.
+                    //haven't thought it through - do I change adjAmount? do I put an early on the last frame?
+                    console.log(frameNo, frameInfo);
+                }
+                // generally add an extra frame with part push adjLate.
+                // Not sure if this is actually needed.
+                pushedFrames.set(frameNo + 1, { dead: true, adjLate: adjAmount, adjEarly: 0, push: false, meh: false });
+                //return adjusted.
+                this.moveFrames[i].individualFrames = pushedFrames;
+            }
         }
         add(time, button = "1") {
             let index = this.buttons.push({ time: time, button: button });
@@ -328,79 +418,97 @@ var Tappy;
             this.buttons.push(lastButton);
         }
         calcFrames(c) {
-            // designing a new one.
-            // 1. create an array of the adjusted Just Frame groups including chances on the ends.
-            // 2. match the 1st and 2nd frame chances to the chances of the jfs above
-            // 3. record the four chances so they can be displayed.
-            // 4. claim the frame.
-            // 5. calculate the push count / late / frames
-            // 6. get rid of the things I don't need in buttonPush /resultset or calc them too.            
-            // TODO
-            // 7. not here but display the two chances above/below the frame input.      something like   10%| |90%  hit
-            // for later maybe                                                                           100%| |30%  justFrame
-            //                                                                                               37%
-            // 8. externalise the just frames adjJF into a class that I can update here then reuse for redrawing the main display.
+            // a new new one.  Oh well.
+            // fixing JF push input... Should not be multiplying chances... Rather it should be the same chance for the same amount of the input variation within frame.
             let jf;
+            //set up the return object with basic data
             c.firstFrame = (c.time - this.startTime) / Tappy.oneFrame; // c.firstFrame  
             c.hit1Frame = Math.floor(c.firstFrame);
             c.hit2Frame = c.hit1Frame + 1;
-            c.hit2Chance = (c.firstFrame - c.hit1Frame);
-            c.hit1Chance = 1 - c.hit2Chance;
-            //c.jf1Chance
-            //c.jf2Chance
+            // are there any unclaimed frames?
             if (this.nextUnclaimed < this.moveFrames.length) {
-                jf = this.moveFrames[this.nextUnclaimed]; // get the next JF we haven't hit yet.
-                let adjEarlyFrame = jf.earlyFrame + this.pushCount;
-                let earlyFrameChance = 1 - (this.pushFrames - this.pushCount);
-                let adjLateFrame = jf.latestFrame + this.pushCount;
-                // I think i will create an external class for this...
-                let adjJF = [[adjEarlyFrame - 1, 0]];
-                adjJF.push([adjEarlyFrame, earlyFrameChance]);
-                for (let i = adjEarlyFrame + 1; i <= adjLateFrame; i++) {
-                    adjJF.push([i, 1]);
-                }
-                //if (adjLateFrame>adjEarlyFrame) adjJF.push([adjLateFrame,1-this.latePush]) // Decided I don't want to double up on the late push chance - May chance my mind.
-                adjJF.push([adjLateFrame + 1, this.pushFrames - this.pushCount]);
-                adjJF.push([adjLateFrame + 2, 0]);
-                if (c.hit2Frame >= adjEarlyFrame) {
-                    c.claimedFrame = this.nextUnclaimed++; //late or ok  // todo, once I switch from calcframes1
-                    console.log("hit:" + c.hit1Frame);
-                    if (c.hit1Frame <= adjLateFrame + 1) {
-                        adjJF.forEach(ajf => {
-                            console.log(ajf);
-                            if (ajf[0] == c.hit1Frame)
-                                c.jf1Chance = ajf[1];
-                            if (ajf[0] == c.hit2Frame)
-                                c.jf2Chance = ajf[1];
-                        });
+                let pushCheck = false;
+                jf = this.moveFrames[this.nextUnclaimed].individualFrames; // get the next JF
+                //process first hit frame chances
+                if (jf.has(c.hit1Frame)) {
+                    let singleJF = jf.get(c.hit1Frame);
+                    if (singleJF.push)
+                        pushCheck = true;
+                    //so what do I want here.
+                    //first (1 - hitstart) is the abosulte max I can have 
+                    //if this is a meh frame normally then it must be late or it wont have calc early
+                    // then situations: 
+                    //  1. there is an adjearly on this frame which means there's only a chance if the frame is not pushed.
+                    //      1a. only the first part of my hit until the push cuts into the next frame is okay.
+                    //  2. there is an adjlate on this frame which means there's only a change if the frame is push.
+                    //      2a. only the part of my hit after the push frames will count...
+                    let hitStart = c.firstFrame - c.hit1Frame;
+                    let calcLate = (singleJF.meh) ? 0 : 1;
+                    let calcEarly = (hitStart > singleJF.adjEarly) ? 1 - hitStart : 1 - singleJF.adjEarly;
+                    if (singleJF.adjLate > 0) {
+                        calcLate = (hitStart < singleJF.adjLate) ? singleJF.adjLate - hitStart : 0;
                     }
-                    else
-                        c.jf1Chance = c.jf2Chance = 0; // too late... 
-                    c.chanceOK = ((c.hit1Chance * c.jf1Chance) + (c.hit2Chance * c.jf2Chance));
+                    //everything up to here is good .  Calc early * calclate looks good. not sure about DEAD
+                    c.jf1Chance = (singleJF.dead) ? 0 : calcEarly * calcLate;
+                    console.log("hit1:", singleJF);
                 }
-                else { //early
-                    // todo when i stop calcframes1
-                    //c.chanceEarly=1 // maybe take this out for simplicity.
+                else
                     c.jf1Chance = 0;
+                //process 2nd hit frame chances.
+                if (jf.has(c.hit2Frame)) {
+                    let singleJF = jf.get(c.hit2Frame);
+                    let hitStart = c.firstFrame - c.hit1Frame;
+                    if (singleJF.push)
+                        pushCheck = true;
+                    //so what do I want here.
+                    //first (hitstart) is the absulte max I can have  (could I make this 1-hitsart again?)
+                    //if this is a meh frame normally then it must be late or it wont have calc early  *** I haven't covered this.
+                    // then situations: 
+                    //  1. there is an adjearly on this frame which means there's only a chance if the frame is not pushed.
+                    //      1a. only the first part of my hit until the push cuts into the next frame is okay.
+                    //  2. there is an adjlate on this frame which means there's only a change if the frame is push.
+                    //      2a. only the part of my hit after the push frames will count...                    
+                    //need something here - to make sure its never more than hitstart but multiply twice either... (think hit 1 is right but its hard to read.)
+                    // break down the situations then make the code cleaner...
+                    let calc = (singleJF.meh) ? 0 : hitStart;
+                    if (singleJF.adjEarly > 0) {
+                        calc = (hitStart > singleJF.adjEarly) ? hitStart - singleJF.adjEarly : 0;
+                    }
+                    //at this point calcEarly is either  1 or 0 correct.
+                    //calc late is either 0 or hitstart. ( if it is hitsart and a is calc early we have a problem)
+                    if (singleJF.adjLate > 0) {
+                        calc = (hitStart > singleJF.adjLate) ? singleJF.adjLate : hitStart;
+                    }
+                    console.log("hit2:", singleJF);
+                    c.jf2Chance = (singleJF.dead) ? 0 : calc;
+                }
+                else
                     c.jf2Chance = 0;
-                    c.claimedFrame = this.nextUnclaimed; //claimed next frame but can still be claimed??? - Come back to STRICT
+                console.log(c);
+                c.chanceOK = c.jf1Chance + c.jf2Chance;
+                // Calculate the pushframes... Happens once only I think...
+                // jf.justFrame is the last Just-frame before push frames, jf.lastestframe is the last push frame
+                //TODO Set a flag earlier for this if.
+                if (pushCheck) {
+                    this.pushSourceFrames(c.firstFrame - this.moveFrames[this.nextUnclaimed].justFrame, this.nextUnclaimed);
+                }
+                //failed to hit anything.  
+                //    but now I'm no longer capturing late...  lets see if it matters.
+                //    before early would leave it unclaimed but late wouldn't
+                if (c.chanceOK == 0) {
+                    c.claimedFrame = this.nextUnclaimed; //claimed next frame but can still be reclaimed
                     if (this.strict) { // strict mode = all buttons must be accounted for.
                         this.nextUnclaimed++;
                         c.chanceOK = 0;
                     }
                 }
-                // Calculate the pushframes... Happens once only I think...
-                // IF so, don't need to use adjusted.
-                if (c.firstFrame > jf.justFrame && jf.latestFrame > jf.justFrame) {
-                    this.pushFrames = c.firstFrame - jf.justFrame;
-                    this.pushCount = Math.floor(this.pushFrames);
-                    if (this.pushFrames > jf.latestFrame - jf.justFrame) {
-                        this.pushFrames = this.pushCount = jf.latestFrame - jf.justFrame; // max it out, or make it zero.. doesn't really matter
-                    }
+                else {
+                    c.claimedFrame = this.nextUnclaimed;
+                    this.nextUnclaimed++;
                 }
             }
             else
-                this.buttons.pop(); // don't need extras
+                this.buttons.pop(); // no unclaimed so just don't worry about storing data of buttons pushed after.
         }
     }
     Tappy.resultset = resultset;
