@@ -4,13 +4,13 @@ module Tappy {
         //1. capture the times that taps were made.
         //2. calc which frames they could have hit on and percentages.
         //3. compare with the just frame objects to measure % of success.
-        public startTime: number;
+        startTime: number;
         buttons: buttonPush[] = []
         moveFrames: jfInput[] = []
         pushCount: number = 0; //at least this much push
         pushFrames: number = 0; // chance of 1 more push - THis is not chance... It is exact in relation to the next button/
         pushMax: number = 0;
-        public nextUnclaimed: number = 1;
+        nextUnclaimed: number = 1;
         chanceSuccess: number = 0;
         strict: boolean
 
@@ -90,7 +90,7 @@ module Tappy {
                         
                     }
                     pushedFrames.set(frameNo,frameInfo);
-                    console.log(frameNo,frameInfo)
+                    //console.log(frameNo,frameInfo)
                 }
                 // generally add an extra frame with part push adjLate.
                 // Not sure if this is actually needed.
@@ -127,24 +127,25 @@ module Tappy {
             this.buttons.push(lastButton)
         }
 
-        private calcFrames(c: buttonPush): void {
+        private calcFrames(tap: buttonPush): void {
             // a new new one.  Oh well.
             // fixing JF push input... Should not be multiplying chances... Rather it should be the same chance for the same amount of the input variation within frame.
             
             let jf: Map<number,individualFrames>;
             //set up the return object with basic data
-            c.firstFrame = (c.time - this.startTime) / oneFrame; // c.firstFrame  
-            c.hit1Frame = Math.floor(c.firstFrame)
-            c.hit2Frame = c.hit1Frame + 1
+            tap.firstFrame = (tap.time - this.startTime) / oneFrame; // c.firstFrame  
+            tap.hit1Frame = Math.floor(tap.firstFrame)
+            tap.hit2Frame = tap.hit1Frame + 1
 
             // are there any unclaimed frames?
             if (this.nextUnclaimed < this.moveFrames.length) {
                 let pushCheck:boolean = false;
+                let mehCheck:boolean = false;
                 jf = this.moveFrames[this.nextUnclaimed].individualFrames // get the next JF
                 
                 //process first hit frame chances
-                if (jf.has(c.hit1Frame)){
-                    let singleJF = jf.get(c.hit1Frame)
+                if (jf.has(tap.hit1Frame)){
+                    let singleJF = jf.get(tap.hit1Frame)
                     if (singleJF.push) pushCheck = true
                 //so what do I want here.
                 //first (1 - hitstart) is the abosulte max I can have 
@@ -156,8 +157,12 @@ module Tappy {
                 //  2. there is an adjlate on this frame which means there's only a change if the frame is push.
                 //      2a. only the part of my hit after the push frames will count...
                     
-                    let hitStart = c.firstFrame - c.hit1Frame
-                    let calcLate = (singleJF.meh ) ? 0: 1 
+                    let hitStart = tap.firstFrame - tap.hit1Frame
+                    let calcLate = 1
+                    if (singleJF.meh){
+                        calcLate = 0
+                        mehCheck = true;
+                    }
                     
                     let calcEarly = (hitStart > singleJF.adjEarly) ? 1- hitStart: 1 - singleJF.adjEarly;
                      
@@ -165,16 +170,16 @@ module Tappy {
                         calcLate = (hitStart < singleJF.adjLate) ? singleJF.adjLate - hitStart: 0;  
                     }
                     //everything up to here is good .  Calc early * calclate looks good. not sure about DEAD
-                    c.jf1Chance = (singleJF.dead) ? 0: calcEarly * calcLate;
-                    console.log("hit1:" ,singleJF)
+                    tap.jf1Chance = (singleJF.dead) ? 0: calcEarly * calcLate;
+                    //console.log("hit1:" ,singleJF)
                 }
-                else c.jf1Chance = 0;
+                else tap.jf1Chance = 0;
 
                 //process 2nd hit frame chances.
-                if (jf.has(c.hit2Frame)){
+                if (jf.has(tap.hit2Frame)){
 
-                    let singleJF = jf.get(c.hit2Frame)
-                    let hitStart = c.firstFrame - c.hit1Frame
+                    let singleJF = jf.get(tap.hit2Frame)
+                    let hitStart = tap.firstFrame - tap.hit1Frame
                     if (singleJF.push) pushCheck = true
 
                 //so what do I want here.
@@ -187,10 +192,11 @@ module Tappy {
                 //  2. there is an adjlate on this frame which means there's only a change if the frame is push.
                 //      2a. only the part of my hit after the push frames will count...                    
 
-                    //need something here - to make sure its never more than hitstart but multiply twice either... (think hit 1 is right but its hard to read.)
-                    // break down the situations then make the code cleaner...
-                    
-                    let calc = (singleJF.meh)?0: hitStart;
+                    let calc = hitStart;
+                    if (singleJF.meh){
+                        calc = 0;
+                        mehCheck = true
+                    }
 
                     if (singleJF.adjEarly > 0) {
                         calc = (hitStart > singleJF.adjEarly ) ? hitStart - singleJF.adjEarly:0
@@ -200,34 +206,35 @@ module Tappy {
                         calc = ( hitStart > singleJF.adjLate) ? singleJF.adjLate: hitStart
                     }
                     
-                    console.log("hit2:" ,singleJF)
-                    c.jf2Chance = (singleJF.dead) ? 0:calc;
+                    //console.log("hit2:" ,singleJF)
+                    tap.jf2Chance = (singleJF.dead) ? 0:calc;
                 }
-                else c.jf2Chance = 0
-                console.log(c)
-                c.chanceOK = c.jf1Chance+c.jf2Chance
+                else tap.jf2Chance = 0
+                //console.log(c)
+                tap.chanceOK = tap.jf1Chance+tap.jf2Chance
 
+                
                 // Calculate the pushframes... Happens once only I think...
                 // jf.justFrame is the last Just-frame before push frames, jf.lastestframe is the last push frame
                 //TODO Set a flag earlier for this if.
                 if (pushCheck) {
-                    this.pushSourceFrames(c.firstFrame - this.moveFrames[this.nextUnclaimed].justFrame, this.nextUnclaimed )
+                    this.pushSourceFrames(tap.firstFrame - this.moveFrames[this.nextUnclaimed].justFrame, this.nextUnclaimed )
                 }
 
                 //failed to hit anything.  
                 //    but now I'm no longer capturing late...  lets see if it matters.
                 //    before early would leave it unclaimed but late wouldn't
-                if (c.chanceOK == 0) {
-                    c.claimedFrame = this.nextUnclaimed; //claimed next frame but can still be reclaimed
+                if (tap.chanceOK == 0) {
+                    tap.claimedFrame = this.nextUnclaimed; //claimed next frame but can still be reclaimed
                     
-                    if (this.strict) { // strict mode = all buttons must be accounted for.
+                    if (this.strict || mehCheck) { // strict mode = all buttons must be accounted for.
                         this.nextUnclaimed++
-                        c.chanceOK = 0
+                        tap.chanceOK = 0
                     }
                 }
                 else {
 
-                    c.claimedFrame = this.nextUnclaimed;
+                    tap.claimedFrame = this.nextUnclaimed;
                     this.nextUnclaimed ++;
                 }
             }

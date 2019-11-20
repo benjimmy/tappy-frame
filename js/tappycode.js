@@ -174,23 +174,28 @@ var Tappy;
             this.tapUpdate(pointer.time, pointer.buttons); //one day make sure pointer.time is the same as sys.game.loop.time... OR a better time hasn't been added to the others.
         }
         tapUpdate(time, button) {
-            let firstClickX = this.startX - 1 + this.frameWidth / 2;
+            let firstClickX = this.startX - 1;
             if (this.stateRunning && !this.stateShowResults) { //stateShowResults is a buffer so late clicks don't cause it to start again.
                 this.results.add(time, button.toString());
                 let dt = time - this.results.startTime;
                 let x = firstClickX + this.speed * dt;
-                let y = this.frameBoxY + this.frameBoxHeight / 2;
+                let yTop = this.frameBoxY;
+                let yBottom = this.frameBoxHeight;
                 if (this.results.pushCount > 0) {
-                    y += this.frameBoxHeight / 3;
-                    for (let i = 0; i < this.results.pushCount; i++) {
-                        y += this.frameBoxHeight / 3 + this.ySpace;
-                    }
+                    yTop += this.frameBoxHeight + this.ySpace + (this.frameBoxHeight / 3 + this.ySpace) * (this.results.pushCount - 1);
+                    yBottom = this.frameBoxHeight / 3;
+                }
+                if (this.results.pushFrames > 0 && this.results.pushCount < this.results.pushMax) {
+                    yBottom += (this.frameBoxHeight / 3 + this.ySpace);
                 }
                 this.graphics.lineStyle(1, 0xffffff);
                 this.graphics.fillStyle(0xffffff, 0.5);
-                let clickCircle = new Phaser.Geom.Circle(x, y, this.frameWidth / 2);
-                this.graphics.strokeCircleShape(clickCircle);
-                this.graphics.fillCircleShape(clickCircle);
+                let clickRect = new Phaser.Geom.Rectangle(x, yTop, this.frameWidth, yBottom);
+                //let clickCircle = new Phaser.Geom.Circle(x, yBottom, this.frameWidth / 2)
+                //this.graphics.strokeCircleShape(clickCircle)
+                //this.graphics.fillCircleShape(clickCircle)
+                this.graphics.strokeRectShape(clickRect);
+                this.graphics.fillRectShape(clickRect);
             }
             if (!this.stateRunning) {
                 this.results = null;
@@ -218,7 +223,7 @@ var Tappy;
                 let x = firstClickX + this.speed * dt;
                 let style = Object.create(this.smallText);
                 //Draw stuff
-                this.resultsText.push(this.add.text(x + 2, this.frameGuideY - 20, `${Phaser.Math.FloorTo(b.firstFrame, -2)}`, this.smallText));
+                this.resultsText.push(this.add.text(x - this.frameWidth / 2, y - 20, `${Phaser.Math.RoundTo(b.firstFrame, -3)}`, this.smallText));
                 style.color = getColorFromPercent(b.chanceOK);
                 let claim;
                 if (b.chanceOK == null || b.claimedFrame == null) {
@@ -229,7 +234,7 @@ var Tappy;
                 else
                     claim = b.claimedFrame.toString();
                 //notes
-                let clickStartLine = new Phaser.Geom.Line(x, 300, x, y + 120);
+                let clickStartLine = new Phaser.Geom.Line(x, y, x, y + 120);
                 this.graphics.strokeLineShape(clickStartLine);
                 this.resultsText.push(this.add.text(x + 2, y, `${Phaser.Math.FloorTo(b.hit2Frame, -2)}
 ${Phaser.Math.FloorTo(b.jf2Chance * 100, -2)}% Just
@@ -382,9 +387,7 @@ var Tappy;
                         frameInfo.adjLate = (pushAmount > this.pushMax) ? 0 : adjAmount;
                     }
                     pushedFrames.set(frameNo, frameInfo);
-                    //todo bit worried about if the push count is the max... and over.
-                    //haven't thought it through - do I change adjAmount? do I put an early on the last frame?
-                    console.log(frameNo, frameInfo);
+                    //console.log(frameNo,frameInfo)
                 }
                 // generally add an extra frame with part push adjLate.
                 // Not sure if this is actually needed.
@@ -417,21 +420,22 @@ var Tappy;
                 lastButton.chanceOK = 0;
             this.buttons.push(lastButton);
         }
-        calcFrames(c) {
+        calcFrames(tap) {
             // a new new one.  Oh well.
             // fixing JF push input... Should not be multiplying chances... Rather it should be the same chance for the same amount of the input variation within frame.
             let jf;
             //set up the return object with basic data
-            c.firstFrame = (c.time - this.startTime) / Tappy.oneFrame; // c.firstFrame  
-            c.hit1Frame = Math.floor(c.firstFrame);
-            c.hit2Frame = c.hit1Frame + 1;
+            tap.firstFrame = (tap.time - this.startTime) / Tappy.oneFrame; // c.firstFrame  
+            tap.hit1Frame = Math.floor(tap.firstFrame);
+            tap.hit2Frame = tap.hit1Frame + 1;
             // are there any unclaimed frames?
             if (this.nextUnclaimed < this.moveFrames.length) {
                 let pushCheck = false;
+                let mehCheck = false;
                 jf = this.moveFrames[this.nextUnclaimed].individualFrames; // get the next JF
                 //process first hit frame chances
-                if (jf.has(c.hit1Frame)) {
-                    let singleJF = jf.get(c.hit1Frame);
+                if (jf.has(tap.hit1Frame)) {
+                    let singleJF = jf.get(tap.hit1Frame);
                     if (singleJF.push)
                         pushCheck = true;
                     //so what do I want here.
@@ -442,22 +446,26 @@ var Tappy;
                     //      1a. only the first part of my hit until the push cuts into the next frame is okay.
                     //  2. there is an adjlate on this frame which means there's only a change if the frame is push.
                     //      2a. only the part of my hit after the push frames will count...
-                    let hitStart = c.firstFrame - c.hit1Frame;
-                    let calcLate = (singleJF.meh) ? 0 : 1;
+                    let hitStart = tap.firstFrame - tap.hit1Frame;
+                    let calcLate = 1;
+                    if (singleJF.meh) {
+                        calcLate = 0;
+                        mehCheck = true;
+                    }
                     let calcEarly = (hitStart > singleJF.adjEarly) ? 1 - hitStart : 1 - singleJF.adjEarly;
                     if (singleJF.adjLate > 0) {
                         calcLate = (hitStart < singleJF.adjLate) ? singleJF.adjLate - hitStart : 0;
                     }
                     //everything up to here is good .  Calc early * calclate looks good. not sure about DEAD
-                    c.jf1Chance = (singleJF.dead) ? 0 : calcEarly * calcLate;
-                    console.log("hit1:", singleJF);
+                    tap.jf1Chance = (singleJF.dead) ? 0 : calcEarly * calcLate;
+                    //console.log("hit1:" ,singleJF)
                 }
                 else
-                    c.jf1Chance = 0;
+                    tap.jf1Chance = 0;
                 //process 2nd hit frame chances.
-                if (jf.has(c.hit2Frame)) {
-                    let singleJF = jf.get(c.hit2Frame);
-                    let hitStart = c.firstFrame - c.hit1Frame;
+                if (jf.has(tap.hit2Frame)) {
+                    let singleJF = jf.get(tap.hit2Frame);
+                    let hitStart = tap.firstFrame - tap.hit1Frame;
                     if (singleJF.push)
                         pushCheck = true;
                     //so what do I want here.
@@ -468,42 +476,42 @@ var Tappy;
                     //      1a. only the first part of my hit until the push cuts into the next frame is okay.
                     //  2. there is an adjlate on this frame which means there's only a change if the frame is push.
                     //      2a. only the part of my hit after the push frames will count...                    
-                    //need something here - to make sure its never more than hitstart but multiply twice either... (think hit 1 is right but its hard to read.)
-                    // break down the situations then make the code cleaner...
-                    let calc = (singleJF.meh) ? 0 : hitStart;
+                    let calc = hitStart;
+                    if (singleJF.meh) {
+                        calc = 0;
+                        mehCheck = true;
+                    }
                     if (singleJF.adjEarly > 0) {
                         calc = (hitStart > singleJF.adjEarly) ? hitStart - singleJF.adjEarly : 0;
                     }
-                    //at this point calcEarly is either  1 or 0 correct.
-                    //calc late is either 0 or hitstart. ( if it is hitsart and a is calc early we have a problem)
                     if (singleJF.adjLate > 0) {
                         calc = (hitStart > singleJF.adjLate) ? singleJF.adjLate : hitStart;
                     }
-                    console.log("hit2:", singleJF);
-                    c.jf2Chance = (singleJF.dead) ? 0 : calc;
+                    //console.log("hit2:" ,singleJF)
+                    tap.jf2Chance = (singleJF.dead) ? 0 : calc;
                 }
                 else
-                    c.jf2Chance = 0;
-                console.log(c);
-                c.chanceOK = c.jf1Chance + c.jf2Chance;
+                    tap.jf2Chance = 0;
+                //console.log(c)
+                tap.chanceOK = tap.jf1Chance + tap.jf2Chance;
                 // Calculate the pushframes... Happens once only I think...
                 // jf.justFrame is the last Just-frame before push frames, jf.lastestframe is the last push frame
                 //TODO Set a flag earlier for this if.
                 if (pushCheck) {
-                    this.pushSourceFrames(c.firstFrame - this.moveFrames[this.nextUnclaimed].justFrame, this.nextUnclaimed);
+                    this.pushSourceFrames(tap.firstFrame - this.moveFrames[this.nextUnclaimed].justFrame, this.nextUnclaimed);
                 }
                 //failed to hit anything.  
                 //    but now I'm no longer capturing late...  lets see if it matters.
                 //    before early would leave it unclaimed but late wouldn't
-                if (c.chanceOK == 0) {
-                    c.claimedFrame = this.nextUnclaimed; //claimed next frame but can still be reclaimed
-                    if (this.strict) { // strict mode = all buttons must be accounted for.
+                if (tap.chanceOK == 0) {
+                    tap.claimedFrame = this.nextUnclaimed; //claimed next frame but can still be reclaimed
+                    if (this.strict || mehCheck) { // strict mode = all buttons must be accounted for.
                         this.nextUnclaimed++;
-                        c.chanceOK = 0;
+                        tap.chanceOK = 0;
                     }
                 }
                 else {
-                    c.claimedFrame = this.nextUnclaimed;
+                    tap.claimedFrame = this.nextUnclaimed;
                     this.nextUnclaimed++;
                 }
             }

@@ -258,7 +258,7 @@ module Tappy {
         }
 
         tapUpdate(time: number, button: number) {
-            let firstClickX = this.startX - 1 + this.frameWidth / 2;
+            let firstClickX = this.startX - 1;
             
             if (this.stateRunning && !this.stateShowResults) { //stateShowResults is a buffer so late clicks don't cause it to start again.
 
@@ -267,21 +267,26 @@ module Tappy {
                 let dt = time - this.results.startTime;
                 let x = firstClickX + this.speed * dt
 
-                let y = this.frameBoxY + this.frameBoxHeight / 2
-                if (this.results.pushCount > 0){
-                    y += this.frameBoxHeight/3;
-                    
-                    for (let i = 0; i < this.results.pushCount;i++){
-                        y+= this.frameBoxHeight/3 + this.ySpace;
-                    }
+                let yTop = this.frameBoxY
+                let yBottom = this.frameBoxHeight
+
+                if (this.results.pushCount>0){
+                    yTop += this.frameBoxHeight + this.ySpace + (this.frameBoxHeight/3 + this.ySpace)*(this.results.pushCount-1)
+                    yBottom = this.frameBoxHeight /3
                 }
-                
+                if (this.results.pushFrames>0 && this.results.pushCount < this.results.pushMax){
+                    yBottom += (this.frameBoxHeight/3 + this.ySpace) 
+                }
+
                 this.graphics.lineStyle(1, 0xffffff);
                 this.graphics.fillStyle(0xffffff, 0.5)
                 
-                let clickCircle = new Phaser.Geom.Circle(x, y, this.frameWidth / 2)
-                this.graphics.strokeCircleShape(clickCircle)
-                this.graphics.fillCircleShape(clickCircle)
+                let clickRect = new Phaser.Geom.Rectangle(x,yTop,this.frameWidth,yBottom)
+                //let clickCircle = new Phaser.Geom.Circle(x, yBottom, this.frameWidth / 2)
+                //this.graphics.strokeCircleShape(clickCircle)
+                //this.graphics.fillCircleShape(clickCircle)
+                this.graphics.strokeRectShape(clickRect)
+                this.graphics.fillRectShape(clickRect)
 
                 
             }
@@ -321,7 +326,7 @@ module Tappy {
 
                 //Draw stuff
 
-                this.resultsText.push(this.add.text(x + 2, this.frameGuideY -20, `${Phaser.Math.FloorTo(b.firstFrame, -2)}`, this.smallText));
+                this.resultsText.push(this.add.text(x-this.frameWidth/2, y -20, `${Phaser.Math.RoundTo(b.firstFrame, -3)}`, this.smallText));
 
 
                 style.color = getColorFromPercent(b.chanceOK);
@@ -337,7 +342,7 @@ module Tappy {
 
 
                 //notes
-                let clickStartLine = new Phaser.Geom.Line(x, 300, x, y + 120);
+                let clickStartLine = new Phaser.Geom.Line(x, y, x, y + 120);
                 this.graphics.strokeLineShape(clickStartLine);
                 this.resultsText.push(this.add.text(x + 2, y,
 `${Phaser.Math.FloorTo(b.hit2Frame,-2)}
