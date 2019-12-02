@@ -1,47 +1,107 @@
 module Tappy {
 
-    //buttons captured in resultset
-    export interface buttonPush {
-        button?: string
-        time: number
-        firstFrame?: number
-
-        claimedFrame?: number  //this
-        chanceOK?: number
-
-        hit1Frame?: number
-        hit2Frame?: number
-        hit1Chance?: number
-        hit2Chance?: number
-        jf1Chance?: number
-        jf2Chance?: number
-    }
-
-
     export class resultset {
         //1. capture the times that taps were made.
         //2. calc which frames they could have hit on and percentages.
         //3. compare with the just frame objects to measure % of success.
-        public startTime: number;
+        startTime: number;
         buttons: buttonPush[] = []
         moveFrames: jfInput[] = []
         pushCount: number = 0; //at least this much push
-        pushFrames: number = 0; // chance of 1 more push
-        public nextUnclaimed: number = 1;
+        pushFrames: number = 0; // chance of 1 more push - THis is not chance... It is exact in relation to the next button/
+        pushMax: number = 0;
+        nextUnclaimed: number = 1;
         chanceSuccess: number = 0;
         strict: boolean
 
-        constructor(start: number, moves: jfInput[], button: string = "1", strict: boolean = false) {
 
+        constructor(start: number, moves: jfInput[], button: string = "1", strict: boolean = false, pushFrames: number) {
+            this.pushMax = pushFrames
             this.startTime = start;
             this.buttons.push({ time: start, button: button, firstFrame: 0, claimedFrame: 0, chanceOK: 1 })
-
+            
             this.moveFrames = moves;
             this.strict = strict
+            this.buildSourceFrames()
+            
+            
+        }
+
+        private buildSourceFrames(){
+            //for each source move frame: get the just frames, and break them out into individual frames.
+            //build the main array then concat the meh frames if applicable.
+            //Maybe I should do this in the maingamescene instead so I can use it for the graphics too.
+      
+            this.moveFrames.forEach(sf => {
+                let justFrames = new Map<number,individualFrames>()
+
+                //early meh frames
+                if (sf.mehEarly != null){
+                    let earlyMeh = true
+                    for (let i = sf.mehEarly; i < sf.earlyFrame; i++){
+                        justFrames.set(i, {earlyMeh: earlyMeh, meh: true, adjEarly: 0, adjLate: 0, push: false})// just going to assume no push on meh frames.
+                        earlyMeh = false;
+                    }
+                }
+
+                //just frames including pushing frames
+                let firstJF = true;
+
+                for (let i = sf.earlyFrame; i <= sf.latestFrame; i++) {
+                    let push: boolean = (i > sf.justFrame)
+                    justFrames.set(i,{meh: false, adjEarly: 0, adjLate: 0, push: push,firstJF:firstJF})
+                    firstJF = false;
+                }               
+                
+                //late meh frames
+                if (sf.mehLate != null){
+                    for (let i = sf.latestFrame+1; i <= sf.mehLate; i++){
+                        //first one needs a flag for part push ***
+                        let firstMeh = (i==sf.latestFrame+1 )
+                        justFrames.set(i,{meh: true, partPush: firstMeh, adjEarly: 0, adjLate: 0, push: false})// just going to assume no push on meh frames.
+                    }
+                }
+
+                sf.individualFrames = justFrames
+            });
+        }
+
+        private pushSourceFrames(pushAmount:number, frameWithPush: number){
+            this.pushFrames = pushAmount;
+            this.pushCount = Math.floor(pushAmount)
+            let adjAmount = pushAmount - this.pushCount
+            let pushedFrames = new Map<number,individualFrames>()
+
+            //move the numbers of each of the push sets 
+            for (let i = frameWithPush+1; i <this.moveFrames.length; i++){
+                let iFrames = this.moveFrames[i].individualFrames;
+                let it = iFrames.entries()
+                let frameNo:number
+                for (let i=0;i<iFrames.size;i++){
+                    let value = it.next().value
+                    frameNo = value[0] + this.pushCount
+
+                    let frameInfo:individualFrames = value[1]
+                    if (frameInfo.earlyMeh || frameInfo.firstJF ) {
+                        frameInfo.adjEarly = adjAmount;
+                    }
+                    if (frameInfo.partPush) {
+                        frameInfo.adjLate = (pushAmount>this.pushMax) ? 0: adjAmount;
+                        
+                    }
+                    pushedFrames.set(frameNo,frameInfo);
+                    //console.log(frameNo,frameInfo)
+                }
+                // generally add an extra frame with part push adjLate.
+                // Not sure if this is actually needed.
+                pushedFrames.set(frameNo+1,{dead:true,adjLate:adjAmount,adjEarly:0,push:false,meh:false});
+                
+                //return adjusted.
+                this.moveFrames[i].individualFrames = pushedFrames;
+            }
         }
 
         public add(time: number, button: string = "1") {
-
             let index = this.buttons.push({ time: time, button: button })
             this.calcFrames(this.buttons[index - 1])
         }
@@ -58,105 +118,129 @@ module Tappy {
             });
 
             return Phaser.Math.FloorTo(chances.reduce(function (product, value) { return product * value }) * 100, -2)
-
         }
+
         public recalcLast() {
             //just to stop an early press making chanceOK NaN
             let lastButton = this.buttons.pop()
             if (lastButton.chanceOK == null)  lastButton.chanceOK = 0
             this.buttons.push(lastButton)
         }
-        private calcFrames(c: buttonPush): void {
-            // designing a new one.
-            // 1. create an array of the adjusted Just Frame groups including chances on the ends.
-            // 2. match the 1st and 2nd frame chances to the chances of the jfs above
-            // 3. record the four chances so they can be displayed.
-            // 4. claim the frame.
-            // 5. calculate the push count / late / frames
-            // 6. get rid of the things I don't need in buttonPush /resultset or calc them too.            
-            // TODO
-            // 7. not here but display the two chances above/below the frame input.      something like   10%| |90%  hit
-            // for later maybe                                                                           100%| |30%  justFrame
-            //                                                                                               37%
-            // 8. externalise the just frames adjJF into a class that I can update here then reuse for redrawing the main display.
 
-            let jf: jfInput;
+        private calcFrames(tap: buttonPush): void {
+            // a new new one.  Oh well.
+            // fixing JF push input... Should not be multiplying chances... Rather it should be the same chance for the same amount of the input variation within frame.
+            
+            let jf: Map<number,individualFrames>;
+            //set up the return object with basic data
+            tap.firstFrame = (tap.time - this.startTime) / oneFrame; // c.firstFrame  
+            tap.hit1Frame = Math.floor(tap.firstFrame)
+            tap.hit2Frame = tap.hit1Frame + 1
 
-            c.firstFrame = (c.time - this.startTime) / oneFrame; // c.firstFrame  
-            c.hit1Frame = Math.floor(c.firstFrame)
-            c.hit2Frame = c.hit1Frame + 1
-            c.hit2Chance = (c.firstFrame - c.hit1Frame)
-            c.hit1Chance = 1 - c.hit2Chance
-
-            //c.jf1Chance
-            //c.jf2Chance
-
+            // are there any unclaimed frames?
             if (this.nextUnclaimed < this.moveFrames.length) {
+                let pushCheck:boolean = false;
+                let mehCheck:boolean = false;
+                jf = this.moveFrames[this.nextUnclaimed].individualFrames // get the next JF
+                
+                //process first hit frame chances
+                if (jf.has(tap.hit1Frame)){
+                    let singleJF = jf.get(tap.hit1Frame)
+                    if (singleJF.push) pushCheck = true
+                //so what do I want here.
+                //first (1 - hitstart) is the abosulte max I can have 
+                //if this is a meh frame normally then it must be late or it wont have calc early
 
-                jf = this.moveFrames[this.nextUnclaimed] // get the next JF we haven't hit yet.
-
-                let adjEarlyFrame = jf.earlyFrame + this.pushCount
-                let earlyFrameChance = 1 - (this.pushFrames - this.pushCount)
-
-                let adjLateFrame = jf.latestFrame + this.pushCount
-           
-                // I think i will create an external class for this...
-                let adjJF = [[adjEarlyFrame - 1, 0]]
-                adjJF.push([adjEarlyFrame, earlyFrameChance])
-                for (let i = adjEarlyFrame + 1 ; i <= adjLateFrame; i++) {
-                    adjJF.push([i, 1])
-                }
-                //if (adjLateFrame>adjEarlyFrame) adjJF.push([adjLateFrame,1-this.latePush]) // Decided I don't want to double up on the late push chance - May chance my mind.
-                adjJF.push([adjLateFrame+1, this.pushFrames - this.pushCount]) 
-                adjJF.push([adjLateFrame+2, 0])
-
-
-                if (c.hit2Frame >= adjEarlyFrame) {
-                    c.claimedFrame = this.nextUnclaimed++ //late or ok  // todo, once I switch from calcframes1
-                    console.log("hit:" + c.hit1Frame)
-                    if (c.hit1Frame <= adjLateFrame + 1) {
-                        adjJF.forEach(ajf => {
-                            console.log(ajf)
-                            if (ajf[0] == c.hit1Frame) c.jf1Chance = ajf[1]
-                            if (ajf[0] == c.hit2Frame) c.jf2Chance = ajf[1]
-                        });
-                    }
-                    else c.jf1Chance = c.jf2Chance = 0 ; // too late... 
-
-                    c.chanceOK = ((c.hit1Chance*c.jf1Chance)+(c.hit2Chance*c.jf2Chance))
+                // then situations: 
+                //  1. there is an adjearly on this frame which means there's only a chance if the frame is not pushed.
+                //      1a. only the first part of my hit until the push cuts into the next frame is okay.
+                //  2. there is an adjlate on this frame which means there's only a change if the frame is push.
+                //      2a. only the part of my hit after the push frames will count...
                     
-                }
-                else { //early
-                    // todo when i stop calcframes1
-                    //c.chanceEarly=1 // maybe take this out for simplicity.
-                    c.jf1Chance = 0
-                    c.jf2Chance = 0 
-                    c.claimedFrame = this.nextUnclaimed; //claimed next frame but can still be claimed??? - Come back to STRICT
-                    
-                    if (this.strict) { // strict mode = all buttons must be accounted for.
-                        this.nextUnclaimed++
-                        c.chanceOK =0
+                    let hitStart = tap.firstFrame - tap.hit1Frame
+                    let calcLate = 1
+                    if (singleJF.meh){
+                        calcLate = 0
+                        mehCheck = true;
                     }
                     
-                }
-
-                // Calculate the pushframes... Happens once only I think...
-                // IF so, don't need to use adjusted.
-                if (c.firstFrame > jf.justFrame && jf.latestFrame > jf.justFrame) { 
-                    this.pushFrames = c.firstFrame - jf.justFrame
-                    this.pushCount = Math.floor(this.pushFrames) 
-                    if (this.pushFrames > jf.latestFrame - jf.justFrame) {
-                        this.pushFrames = this.pushCount = jf.latestFrame - jf.justFrame // max it out, or make it zero.. doesn't really matter
-                        
+                    let calcEarly = (hitStart > singleJF.adjEarly) ? 1- hitStart: 1 - singleJF.adjEarly;
+                     
+                    if (singleJF.adjLate > 0) {
+                        calcLate = (hitStart < singleJF.adjLate) ? singleJF.adjLate - hitStart: 0;  
                     }
+                    //everything up to here is good .  Calc early * calclate looks good. not sure about DEAD
+                    tap.jf1Chance = (singleJF.dead) ? 0: calcEarly * calcLate;
+                    //console.log("hit1:" ,singleJF)
                 }
+                else tap.jf1Chance = 0;
+
+                //process 2nd hit frame chances.
+                if (jf.has(tap.hit2Frame)){
+
+                    let singleJF = jf.get(tap.hit2Frame)
+                    let hitStart = tap.firstFrame - tap.hit1Frame
+                    if (singleJF.push) pushCheck = true
+
+                //so what do I want here.
+                //first (hitstart) is the absulte max I can have  (could I make this 1-hitsart again?)
+                //if this is a meh frame normally then it must be late or it wont have calc early  *** I haven't covered this.
+
+                // then situations: 
+                //  1. there is an adjearly on this frame which means there's only a chance if the frame is not pushed.
+                //      1a. only the first part of my hit until the push cuts into the next frame is okay.
+                //  2. there is an adjlate on this frame which means there's only a change if the frame is push.
+                //      2a. only the part of my hit after the push frames will count...                    
+
+                    let calc = hitStart;
+                    if (singleJF.meh){
+                        calc = 0;
+                        mehCheck = true
+                    }
+
+                    if (singleJF.adjEarly > 0) {
+                        calc = (hitStart > singleJF.adjEarly ) ? hitStart - singleJF.adjEarly:0
+                    }
+                    
+                    if (singleJF.adjLate > 0) {
+                        calc = ( hitStart > singleJF.adjLate) ? singleJF.adjLate: hitStart
+                    }
+                    
+                    //console.log("hit2:" ,singleJF)
+                    tap.jf2Chance = (singleJF.dead) ? 0:calc;
+                }
+                else tap.jf2Chance = 0
+                //console.log(c)
+                tap.chanceOK = tap.jf1Chance+tap.jf2Chance
 
                 
+                // Calculate the pushframes... Happens once only I think...
+                // jf.justFrame is the last Just-frame before push frames, jf.lastestframe is the last push frame
+                //TODO Set a flag earlier for this if.
+                if (pushCheck) {
+                    this.pushSourceFrames(tap.firstFrame - this.moveFrames[this.nextUnclaimed].justFrame, this.nextUnclaimed )
+                }
+
+                //failed to hit anything.  
+                //    but now I'm no longer capturing late...  lets see if it matters.
+                //    before early would leave it unclaimed but late wouldn't
+                if (tap.chanceOK == 0) {
+                    tap.claimedFrame = this.nextUnclaimed; //claimed next frame but can still be reclaimed
+                    
+                    if (this.strict || mehCheck) { // strict mode = all buttons must be accounted for.
+                        this.nextUnclaimed++
+                        tap.chanceOK = 0
+                    }
+                }
+                else {
+
+                    tap.claimedFrame = this.nextUnclaimed;
+                    this.nextUnclaimed ++;
+                }
             }
-            else this.buttons.pop() // don't need extras
+            else this.buttons.pop() // no unclaimed so just don't worry about storing data of buttons pushed after.
 
         }
-
  
     }
 
