@@ -1,7 +1,7 @@
 module Tappy {
 
     export const oneFrame = 16.6666666666666666
-    const gameWidth: number = 1100
+    export const gameWidth: number = 1100
     export const mediumText: any = { fontFamily: 'Arial', fontSize: 18, color: '#ffffff' };
     export class FrameGame extends Phaser.Scene {
 
@@ -36,8 +36,6 @@ module Tappy {
         strict: boolean = false;
 
         //create objects
-        frameTick: Phaser.Geom.Line;
-
         graphics: Phaser.GameObjects.Graphics;
         graphicsGuide: Phaser.GameObjects.Graphics;
 
@@ -45,7 +43,6 @@ module Tappy {
         sceneTime: Phaser.GameObjects.BitmapText;
         running: Phaser.GameObjects.Text;
         resultsText: Phaser.GameObjects.Text[] = [];
-        scenefps: Phaser.GameObjects.BitmapText;
 
         //result objects
         results: resultset
@@ -61,12 +58,12 @@ module Tappy {
             }
         }
         preload() {
-            this.load.bitmapFont('luc', ['./Fonts/lucidaconsole_0.png', './Fonts/lucidaconsole_1.png'], './Fonts/lucidaconsole.xml');
             this.load.json('defaultMove', './movesjson/default.json');
-
+            this.load.image('blueButton','./ui/BlueSquareButton.png');
         }
 
         create() {
+           
             if (this.justFrameMove == null) {                                           //If not called from menu
                 this.justFrameMove = <justFrames>this.cache.json.get('defaultMove'); //Default to whatever in preload
                 console.log(`Loaded default: ${this.justFrameMove.MoveName}`)
@@ -98,9 +95,13 @@ module Tappy {
             this.add.text(this.startX, this.moveTextY+40, this.justFrameMove.Notes, mediumText)
 
 
-            /* Possible features.
-            1. to make the effect of push frames clearer.
-            */
+            let menuButton = this.add.sprite(cleanGameWidth,40, 'blueButton').setInteractive()
+            tappyTools.centerButtonText(this.add.text(0, 0, 'MENU', mediumText),menuButton)
+
+            menuButton.on('pointerdown', function(p, x, y, ed: Phaser.Input.EventData) {
+                ed.stopPropagation()
+                this.scene.scene.start('MenuScene')
+            })
 
             this.graphicsGuide = this.add.graphics({ lineStyle: { width: 1, color: 0xff0000 }, fillStyle: { color: 0x660000, alpha: 1 } });
             // make the whole set red.
@@ -185,8 +186,6 @@ module Tappy {
             })
 
             this.graphics = this.add.graphics({ lineStyle: { width: 1, color: 0xff0000 } });//now just for the circles.
-
-            this.scenefps = this.add.bitmapText(cleanGameWidth + this.startX, 32, 'luc', '', 16).setOrigin(1);
             this.running = this.add.text(600, 50, 'Tap or Click when ready', this.largeText).setOrigin()
 
             //set up input handdlers: // TODO add keyboard
@@ -196,22 +195,18 @@ module Tappy {
 
             console.log(`width: ${cleanGameWidth} sX: ${this.startX}`)
 
+            let strictText =  (this.strict)?"Strict":""
+            this.add.text(this.startX, 100, strictText, mediumText)
+
+/*          //turned off the button for now.   
             let strictText =  (this.strict)?"STRICT MODE ON":"STRICT MODE OFF"
             this.add.text(this.startX, 100, strictText, mediumText).setInteractive().on('pointerdown', function (p, x, y, ed: Phaser.Input.EventData) {
                 ed.stopPropagation()
                 this.scene.strict = !this.scene.strict // this shouldn't work??
                 this.text = (this.scene.strict)?"STRICT MODE ON":"STRICT MODE OFF"
-
-            }
-                
-)
-            this.add.text(cleanGameWidth + this.startX, 40, 'MENU', mediumText).setInteractive().on('pointerdown', function(p, x, y, ed: Phaser.Input.EventData) {
-                ed.stopPropagation()
-                //this.graphics.clear() //maybe not.
-                //this.graphicsGuide.clear() //maybe not.
-                this.scene.scene.start('MenuScene')
-            })
+ */
         }
+
 
         drawBounds(x1: number, x2: number, y1: number, y2: number, colour: number) {
             let gDraw = this.add.graphics({ lineStyle: { width: 1, color: colour } })
@@ -224,10 +219,7 @@ module Tappy {
 
 
 
-        update(timestep, dt) {
-
-            this.scenefps.setText(Phaser.Math.FloorTo(this.sys.game.loop.actualFps, -2).toString()); //seems slow - think i should do it myself. ? How often then?
-
+        update() {
             if (this.stateRunning) {
                 var runtime = this.sys.game.loop.time - this.results.startTime
                 if (!this.stateShowResults) {
@@ -245,7 +237,7 @@ module Tappy {
 
 
         pressed(pad: Phaser.Input.Gamepad.Gamepad, button: Phaser.Input.Gamepad.Button) {
-            //LOOKS LIKE THIS IS BEING READ ONCE A FRAME... NEED MORE.
+            //LOOKS LIKE THIS IS BEING READ ONCE A FRAME... can't seem to do better with Phaser right now.
             if (this.justFrameMove.DirectionsOK || button.index < 4) {
                 this.tapUpdate(this.sys.game.loop.time, button.index)
             }

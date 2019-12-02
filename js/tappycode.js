@@ -1,7 +1,7 @@
 var Tappy;
 (function (Tappy) {
     Tappy.oneFrame = 16.6666666666666666;
-    const gameWidth = 1100;
+    Tappy.gameWidth = 1100;
     Tappy.mediumText = { fontFamily: 'Arial', fontSize: 18, color: '#ffffff' };
     class FrameGame extends Phaser.Scene {
         constructor() {
@@ -32,8 +32,8 @@ var Tappy;
             }
         }
         preload() {
-            this.load.bitmapFont('luc', ['./Fonts/lucidaconsole_0.png', './Fonts/lucidaconsole_1.png'], './Fonts/lucidaconsole.xml');
             this.load.json('defaultMove', './movesjson/default.json');
+            this.load.image('blueButton', './ui/BlueSquareButton.png');
         }
         create() {
             if (this.justFrameMove == null) { //If not called from menu
@@ -48,7 +48,7 @@ var Tappy;
             this.lastFrameDisplayed = jfLastFrame.latestFrame + this.pushFrames + 2;
             if (jfLastFrame.mehLate != null)
                 this.lastFrameDisplayed += (jfLastFrame.mehLate > jfLastFrame.latestFrame) ? jfLastFrame.mehLate - jfLastFrame.latestFrame : 0;
-            this.frameWidth = Math.floor(gameWidth / this.lastFrameDisplayed); //round it into clean frame size
+            this.frameWidth = Math.floor(Tappy.gameWidth / this.lastFrameDisplayed); //round it into clean frame size
             let cleanGameWidth = this.frameWidth * this.lastFrameDisplayed; //multiply it back into clean gamewidth 
             // might be a practical minimum size for this. 3 frames probably... 
             // 3 frames times 60 = 180 + edges...
@@ -56,9 +56,12 @@ var Tappy;
             this.add.text(this.startX, this.moveTextY, this.justFrameMove.MoveName, Tappy.mediumText);
             this.add.text(this.startX, this.moveTextY + 20, this.justFrameMove.MoveNotation, Tappy.mediumText);
             this.add.text(this.startX, this.moveTextY + 40, this.justFrameMove.Notes, Tappy.mediumText);
-            /* Possible features.
-            1. to make the effect of push frames clearer.
-            */
+            let menuButton = this.add.sprite(cleanGameWidth, 40, 'blueButton').setInteractive();
+            Tappy.tappyTools.centerButtonText(this.add.text(0, 0, 'MENU', Tappy.mediumText), menuButton);
+            menuButton.on('pointerdown', function (p, x, y, ed) {
+                ed.stopPropagation();
+                this.scene.scene.start('MenuScene');
+            });
             this.graphicsGuide = this.add.graphics({ lineStyle: { width: 1, color: 0xff0000 }, fillStyle: { color: 0x660000, alpha: 1 } });
             // make the whole set red.
             this.graphicsGuide.strokeRect(0, 0, 1200, 600); //debug, show gamesize
@@ -123,25 +126,21 @@ var Tappy;
                 this.add.text(this.startX + jf.justFrame * this.frameWidth + this.frameWidth / 2, this.frameGuideY + 10, jf.move.toString(), this.smallText).setOrigin(0.5);
             });
             this.graphics = this.add.graphics({ lineStyle: { width: 1, color: 0xff0000 } }); //now just for the circles.
-            this.scenefps = this.add.bitmapText(cleanGameWidth + this.startX, 32, 'luc', '', 16).setOrigin(1);
             this.running = this.add.text(600, 50, 'Tap or Click when ready', this.largeText).setOrigin();
             //set up input handdlers: // TODO add keyboard
             this.input.on('pointerdown', this.clicked, this);
             this.input.on('pointerdownoutside', this.clicked, this);
             this.input.gamepad.on('down', this.pressed, this);
             console.log(`width: ${cleanGameWidth} sX: ${this.startX}`);
-            let strictText = (this.strict) ? "STRICT MODE ON" : "STRICT MODE OFF";
-            this.add.text(this.startX, 100, strictText, Tappy.mediumText).setInteractive().on('pointerdown', function (p, x, y, ed) {
-                ed.stopPropagation();
-                this.scene.strict = !this.scene.strict; // this shouldn't work??
-                this.text = (this.scene.strict) ? "STRICT MODE ON" : "STRICT MODE OFF";
-            });
-            this.add.text(cleanGameWidth + this.startX, 40, 'MENU', Tappy.mediumText).setInteractive().on('pointerdown', function (p, x, y, ed) {
-                ed.stopPropagation();
-                //this.graphics.clear() //maybe not.
-                //this.graphicsGuide.clear() //maybe not.
-                this.scene.scene.start('MenuScene');
-            });
+            let strictText = (this.strict) ? "Strict" : "";
+            this.add.text(this.startX, 100, strictText, Tappy.mediumText);
+            /*          //turned off the button for now.
+                        let strictText =  (this.strict)?"STRICT MODE ON":"STRICT MODE OFF"
+                        this.add.text(this.startX, 100, strictText, mediumText).setInteractive().on('pointerdown', function (p, x, y, ed: Phaser.Input.EventData) {
+                            ed.stopPropagation()
+                            this.scene.strict = !this.scene.strict // this shouldn't work??
+                            this.text = (this.scene.strict)?"STRICT MODE ON":"STRICT MODE OFF"
+             */
         }
         drawBounds(x1, x2, y1, y2, colour) {
             let gDraw = this.add.graphics({ lineStyle: { width: 1, color: colour } });
@@ -149,8 +148,7 @@ var Tappy;
             gDraw.strokeLineShape(new Phaser.Geom.Line(x1, y1, x1, y2));
             gDraw.strokeLineShape(new Phaser.Geom.Line(x2, y1, x2, y2));
         }
-        update(timestep, dt) {
-            this.scenefps.setText(Phaser.Math.FloorTo(this.sys.game.loop.actualFps, -2).toString()); //seems slow - think i should do it myself. ? How often then?
+        update() {
             if (this.stateRunning) {
                 var runtime = this.sys.game.loop.time - this.results.startTime;
                 if (!this.stateShowResults) {
@@ -165,7 +163,7 @@ var Tappy;
             }
         }
         pressed(pad, button) {
-            //LOOKS LIKE THIS IS BEING READ ONCE A FRAME... NEED MORE.
+            //LOOKS LIKE THIS IS BEING READ ONCE A FRAME... can't seem to do better with Phaser right now.
             if (this.justFrameMove.DirectionsOK || button.index < 4) {
                 this.tapUpdate(this.sys.game.loop.time, button.index);
             }
@@ -269,13 +267,16 @@ var Tappy;
         }
         create() {
             this.data = this.cache.json.get('jfData');
-            let y = 150;
+            let y = 40;
+            let x = Tappy.gameWidth - 100;
             this.data.forEach(char => {
-                this.add.text(50, y, char.Character, Tappy.mediumText);
+                Tappy.tappyTools.centerButtonText(this.add.text(0, 0, char.Character, Tappy.mediumText), this.add.sprite(x, y, 'blueButton').setVisible(false));
+                y += 30;
                 char.JustFrameMoves.forEach(move => {
-                    this.add.text(200, y, move.MoveName, Tappy.mediumText).setInteractive().setData("move", move);
+                    Tappy.tappyTools.centerButtonText(this.add.text(0, 0, move.MoveName, Tappy.mediumText), this.add.sprite(x, y, 'blueButton').setInteractive().setData("move", move));
                     y += 50;
                 });
+                y += 10;
             });
             this.input.once('gameobjectdown', this.clicked, this);
         }
@@ -520,5 +521,15 @@ var Tappy;
         }
     }
     Tappy.resultset = resultset;
+})(Tappy || (Tappy = {}));
+var Tappy;
+(function (Tappy) {
+    class tappyTools {
+        static centerButtonText(gameText, gameButton) {
+            Phaser.Display.Align.In.Center(gameText, gameButton);
+        }
+        ;
+    }
+    Tappy.tappyTools = tappyTools;
 })(Tappy || (Tappy = {}));
 //# sourceMappingURL=tappycode.js.map

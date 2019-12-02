@@ -16,15 +16,19 @@ module Tappy {
         }
         create() {
             this.data = this.cache.json.get('jfData')
-            let y = 150
-
+            let y = 40
+            let x = gameWidth - 100
             this.data.forEach(char => {
-                this.add.text(50, y, char.Character, mediumText)
+                tappyTools.centerButtonText( this.add.text(0, 0, char.Character, mediumText),
+                                             this.add.sprite(x,y,'blueButton').setVisible(false));
+                y+=30
                 char.JustFrameMoves.forEach(move => {
-                    this.add.text(200, y, move.MoveName, mediumText).setInteractive().setData("move", move)
+                    tappyTools.centerButtonText( this.add.text(0, 0, move.MoveName, mediumText),
+                                                 this.add.sprite(x,y,'blueButton').setInteractive().setData("move", move));
                     y += 50
                 });
-
+                y+=10
+                
             });
 
             this.input.once('gameobjectdown', this.clicked, this)

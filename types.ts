@@ -1,5 +1,11 @@
 module Tappy {
-
+    export class tappyTools {
+        static centerButtonText (gameText, gameButton) {
+            Phaser.Display.Align.In.Center(
+              gameText,
+              gameButton
+            )};
+    }
     //buttons captured in resultset
     export interface buttonPush {
         button?: string
