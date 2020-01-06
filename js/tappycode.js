@@ -164,7 +164,7 @@ var Tappy;
         }
         pressed(pad, button) {
             //LOOKS LIKE THIS IS BEING READ ONCE A FRAME... can't seem to do better with Phaser right now.
-            if (this.justFrameMove.DirectionsOK || button.index < 4) {
+            if (this.justFrameMove.DirectionsOK || button.index < 6) {
                 this.tapUpdate(this.sys.game.loop.time, button.index);
             }
         }
